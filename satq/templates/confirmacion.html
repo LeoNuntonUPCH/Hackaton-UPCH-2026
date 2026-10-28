@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico %}
+{% block contenido %}
+
+<div class="encabezado">
+  <div>
+    <h1>Confirmación de envío</h1>
+    <div class="bajada">Último paso de la preparación de una comunicación de demostración.</div>
+  </div>
+  <div class="acciones">
+    <a class="btn" href="/notificaciones?quebrada={{ quebrada_sel.codigo }}&plantilla={{ plantilla_sel }}">
+      {{ ico('flecha-izq', 16) }} Volver a notificaciones
+    </a>
+  </div>
+</div>
+
+<div class="centrado">
+  <section class="tarjeta tarjeta-confirmacion">
+    <div class="cab">
+      <div class="icono">{{ ico('enviar', 21) }}</div>
+      <div>
+        <h2>Confirmar envío simulado</h2>
+        <div class="texto-sm texto-muted">Revisa los destinatarios, canales y mensaje.</div>
+        <span class="pildora p-azul mt-8" style="display:inline-flex">
+          {{ ico('circulo', 11) }} Demostración · Ningún envío real
+        </span>
+      </div>
+    </div>
+
+    <div class="resumen-envio">
+      <div>
+        <div class="rotulo">Localidad</div>
+        <div class="valor">{{ quebrada_sel.nombre }}</div>
+        <div class="sub">{{ quebrada_sel.distrito }} · {{ quebrada_sel.departamento }} / {{ quebrada_sel.provincia }}</div>
+      </div>
+      <div>
+        <div class="rotulo">Destinatarios autorizados</div>
+        <div class="valor">{{ quebrada_sel.destinatarios }} destinatarios de prueba</div>
+        <div class="sub">{{ quebrada_sel.grupo }}</div>
+      </div>
+    </div>
+
+    <div class="flex gap-8 mb-16" style="flex-wrap:wrap">
+      {% for c in ['WhatsApp', 'SMS'] %}
+      <span class="pildora {{ 'p-azul' if c in canales_sel else 'p-contorno' }}">
+        {{ ico('chat' if c == 'WhatsApp' else 'sms', 11) }}
+        {{ c }} · {{ 'seleccionado · no conectado' if c in canales_sel else 'no seleccionado' }}
+      </span>
+      {% endfor %}
+    </div>
+
+    <div class="caja-mensaje mb-16" style="background:#F6F9FC">
+      <div class="rotulo">Plantilla · {{ plantilla.nombre }}</div>
+      <div class="texto">{{ plantilla.texto }}</div>
+    </div>
+
+    <div class="aviso aviso-info">
+      {{ ico('info', 16) }}
+      <div>
+        <div class="titulo">Solo se creará un registro ficticio</div>
+        <div class="texto">
+          No se enviará ningún mensaje. El texto es una plantilla que requiere validación local:
+          no hay información verificada de zonas seguras.
+        </div>
+      </div>
+    </div>
+
+    <div class="nota-fina mt-12">
+      Responsable: {{ usuario.nombre }} · {{ usuario.rol }}. Resumen preparado el {{ preparado }}.
+    </div>
+
+    <form method="post" action="/notificaciones/confirmar">
+      <input type="hidden" name="quebrada" value="{{ quebrada_sel.codigo }}">
+      <input type="hidden" name="plantilla" value="{{ plantilla_sel }}">
+      {% for c in canales_sel %}<input type="hidden" name="canales" value="{{ c }}">{% endfor %}
+      <div class="acciones">
+        <a class="btn" href="/notificaciones?quebrada={{ quebrada_sel.codigo }}">Cancelar</a>
+        <button class="btn btn-primario" type="submit">{{ ico('check', 16) }} Confirmar simulación</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+{% endblock %}

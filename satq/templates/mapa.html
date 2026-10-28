@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico %}
+{% block contenido %}
+
+<div class="encabezado">
+  <div>
+    <h1>Mapa de riesgo</h1>
+    <div class="bajada">Explora el territorio y consulta la evidencia disponible por quebrada.</div>
+  </div>
+  <div class="acciones">
+    <span class="marcador-estado">{{ ico('circulo', 13) }} Cartografía referencial</span>
+  </div>
+</div>
+
+<form class="filtros" method="get" action="/mapa">
+  <div class="campo">
+    <label for="m-dep">Departamento</label>
+    <select id="m-dep" name="departamento">
+      <option value="">Todos</option>
+      {% for d in departamentos %}
+      <option value="{{ d }}" {{ 'selected' if filtros.departamento == d }}>{{ d }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="m-pro">Provincia</label>
+    <select id="m-pro" name="provincia">
+      <option value="">Todas</option>
+      {% for p in provincias %}
+      <option value="{{ p }}" {{ 'selected' if filtros.provincia == p }}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="m-dis">Distrito</label>
+    <select id="m-dis" name="distrito">
+      <option value="">Todos</option>
+      {% for d in distritos %}
+      <option value="{{ d }}" {{ 'selected' if filtros.distrito == d }}>{{ d }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="m-que">Quebrada</label>
+    <select id="m-que" name="quebrada">
+      {% for q in quebradas %}
+      <option value="{{ q.codigo }}" {{ 'selected' if filtros.quebrada == q.codigo }}>{{ q.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primario" type="submit">{{ ico('ajustes', 16) }} Aplicar filtros</button>
+</form>
+
+<div class="rejilla r-principal-ancha">
+  <div>
+    <form method="get" action="/mapa" class="flex gap-12 mb-12" style="align-items:flex-end">
+      <div class="campo" style="flex:1">
+        <label for="m-buscar">Buscar por quebrada o localidad</label>
+        <div class="input-icono">
+          <input id="m-buscar" type="text" name="buscar" value="{{ filtros.buscar }}"
+                 placeholder="Huaycoloro, Lima">
+          {{ ico('buscar', 16) }}
+        </div>
+      </div>
+      <input type="hidden" name="quebrada" value="{{ filtros.quebrada }}">
+      <button class="btn" type="submit">{{ ico('centrar', 16) }} Centrar selección</button>
+    </form>
+
+    <section class="tarjeta">
+      <div class="cuerpo" style="padding:14px">
+        <div class="mapa-caja">
+          {{ mapa | safe }}
+          <div class="mapa-controles">
+            <div class="norte">N ↑</div>
+            <button type="button" aria-label="Acercar (referencial)">+</button>
+            <button type="button" aria-label="Alejar (referencial)">−</button>
+            <button type="button" aria-label="Centrar (referencial)">{{ ico('centrar', 14) }}</button>
+          </div>
+          <div class="mapa-nota">Cartografía referencial · Marcadores de demostración · Sin rutas verificadas</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tarjeta mt-12">
+      <div class="cuerpo">
+        <div class="leyenda-mapa" style="margin-top:0">
+          <span style="color:{{ colores.bajo }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Bajo</span></span>
+          <span style="color:{{ colores.moderado }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Moderado</span></span>
+          <span style="color:{{ colores.alto }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Alto</span></span>
+          <span style="color:{{ colores.critico }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Crítico</span></span>
+          <span style="color:{{ colores.sin_datos }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Sin datos</span></span>
+        </div>
+        <div class="nota-fina mt-8">
+          Riesgos y marcadores simulados. La ubicación no acredita afectación ni rutas de evacuación.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div>
+    {% if quebrada_sel %}
+    <section class="tarjeta panel-detalle mb-16">
+      <div class="cab-panel">
+        <div style="flex:1">
+          <div class="rotulo-panel">Quebrada seleccionada</div>
+          <h3>{{ quebrada_sel.nombre }}</h3>
+        </div>
+        <a href="/mapa" aria-label="Quitar selección" style="color:var(--muted-2)">{{ ico('cerrar', 16) }}</a>
+      </div>
+      <div class="cuerpo" style="padding-top:8px">
+        <div class="texto-sm texto-muted">{{ quebrada_sel.ubicacion_larga }}</div>
+        <div class="mt-12">
+          <span class="pildora p-{{ evaluacion.nivel }}">
+            {{ evaluacion.glifo }} Riesgo {{ evaluacion.etiqueta | lower }} · simulado
+          </span>
+        </div>
+        <div class="par-dato">
+          <div>
+            <div class="rotulo">Lluvia acumulada / {{ umbrales.ventana_horas }} h</div>
+            <div class="valor">{% if evaluacion.acumulado is not none %}{{ evaluacion.acumulado | round(0) | int }} mm{% else %}Sin dato{% endif %}</div>
+          </div>
+          <div>
+            <div class="rotulo">Umbral crítico / {{ umbrales.ventana_horas }} h</div>
+            <div class="valor">{{ umbrales.critico | round(0) | int }} mm</div>
+          </div>
+        </div>
+        <div class="nota-fina mb-12">{{ ahora_texto }} · Fuente de demostración</div>
+        <a class="btn btn-primario btn-bloque" href="/quebrada/{{ quebrada_sel.codigo }}">
+          {{ ico('flecha-arriba-der', 16) }} Ver detalle de quebrada
+        </a>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Capas del mapa</h2></div>
+      <div class="cuerpo" style="padding-top:6px">
+        {% for c in capas %}
+        <div class="capa">
+          <input type="checkbox" {{ 'checked' if c.activa }} {{ 'disabled' if c.bloqueada }}
+                 aria-label="{{ c.nombre }}">
+          <div>
+            <div class="t">{{ c.nombre }}</div>
+            <div class="d">{{ c.detalle }}</div>
+          </div>
+          {% if c.bloqueada %}<span class="candado">{{ ico('candado', 14) }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="aviso aviso-info">
+      {{ ico('info', 16) }}
+      <div>
+        <div class="titulo">Sin recorridos oficiales</div>
+        <div class="texto">Consulta a tu municipalidad para información local verificada.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

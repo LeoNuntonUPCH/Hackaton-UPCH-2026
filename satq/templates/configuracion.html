@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico %}
+{% block contenido %}
+
+<div class="encabezado">
+  <div>
+    <h1>Configuración y fuentes de datos</h1>
+    <div class="bajada">Administra parámetros de demostración y consulta la disponibilidad de conexiones.</div>
+  </div>
+  <div class="acciones">
+    <span class="marcador-estado">{{ ico('circulo', 13) }} Personal técnico · edición de umbrales</span>
+  </div>
+</div>
+
+<nav class="pestanas">
+  <a href="/configuracion?pestana=umbrales" class="{{ 'activa' if pestana == 'umbrales' }}">Quebradas y umbrales</a>
+  <a href="/configuracion?pestana=fuentes" class="{{ 'activa' if pestana == 'fuentes' }}">Fuentes y conexiones</a>
+  <a href="/configuracion?pestana=tecnico" class="{{ 'activa' if pestana == 'tecnico' }}">Registro técnico</a>
+</nav>
+
+{% if mensaje %}
+<div class="aviso aviso-exito mb-16">{{ ico('check-circulo', 16) }}<div class="texto" style="color:var(--ink)">{{ mensaje }}</div></div>
+{% endif %}
+{% for e in errores %}
+<div class="aviso aviso-error mb-12">{{ ico('alerta', 16) }}<div class="texto" style="color:var(--ink)">{{ e }}</div></div>
+{% endfor %}
+
+<div class="rejilla r-principal-ancha">
+  <div>
+    {% if pestana in ('umbrales', 'tecnico') %}
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Registro y edición de quebradas</h2></div>
+      <div class="cuerpo">
+        <form method="get" action="/configuracion" class="flex gap-12 mb-12" style="align-items:flex-end">
+          <div class="campo" style="flex:1">
+            <label for="c-que">Quebrada registrada</label>
+            <select id="c-que" name="quebrada" onchange="this.form.submit()">
+              {% for q in todas_quebradas %}
+              <option value="{{ q.codigo }}" {{ 'selected' if quebrada_sel.codigo == q.codigo }}>{{ q.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <a class="btn" href="#nueva-quebrada">{{ ico('mas', 16) }} Nueva quebrada</a>
+        </form>
+        <div class="rejilla r-2 mb-12">
+          <div class="campo">
+            <span class="rotulo-campo">Departamento</span>
+            <input type="text" value="{{ quebrada_sel.departamento }}" readonly>
+          </div>
+          <div class="campo">
+            <span class="rotulo-campo">Provincia</span>
+            <input type="text" value="{{ quebrada_sel.provincia }}" readonly>
+          </div>
+          <div class="campo">
+            <span class="rotulo-campo">Distrito</span>
+            <input type="text" value="{{ quebrada_sel.distrito }}" readonly>
+          </div>
+          <div class="campo">
+            <span class="rotulo-campo">Localidad de referencia</span>
+            <input type="text" value="{{ quebrada_sel.nombre }}" readonly>
+          </div>
+        </div>
+        <div class="nota-fina">Ubicación real de ejemplo. Exposición y datos de riesgo no verificados.</div>
+      </div>
+    </section>
+
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Umbrales por nivel de riesgo</h2></div>
+      <form method="post" action="/configuracion/umbrales">
+        <div class="cuerpo">
+          <div class="rejilla r-2 mb-12">
+            <div class="campo">
+              <label for="c-ventana">Ventana de acumulación</label>
+              <select id="c-ventana" name="ventana">
+                {% for v in ventanas %}
+                <option value="{{ v }}" {{ 'selected' if umbrales.ventana_horas == v }}>Móvil de {{ v }} hora{{ 's' if v != 1 }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="campo">
+              <span class="rotulo-campo">Unidad de medida</span>
+              <input type="text" value="mm / {{ umbrales.ventana_horas }} h" readonly>
+            </div>
+          </div>
+        </div>
+
+        <table class="tabla tabla-umbrales">
+          <thead>
+            <tr><th>Nivel</th><th>Rango de demostración</th><th>Límite inferior</th></tr>
+          </thead>
+          <tbody>
+            {% for f in filas_umbrales %}
+            <tr class="{{ 'fila-bajo' if f.nivel == 'bajo' }}">
+              <td><span class="nivel nivel-{{ f.nivel }}">{{ f.glifo }} {{ f.etiqueta }}</span></td>
+              <td class="sub">{{ f.rango }}</td>
+              <td>
+                <div class="flex gap-8 centro-v">
+                  <input type="number" step="0.5" min="0" max="500" name="{{ f.nivel }}"
+                         value="{{ '%g' % f.limite_inferior }}" {{ 'readonly' if f.nivel == 'bajo' }}
+                         aria-label="Límite inferior de {{ f.etiqueta }}">
+                  <span style="color:var(--muted-2)">mm/{{ umbrales.ventana_horas }} h</span>
+                  {{ ico('editar', 14) }}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="cuerpo flex entre centro-v" style="padding-top:12px">
+          <span class="nota-fina">Valores ficticios · No validados para uso operativo</span>
+          <button class="btn btn-primario" type="submit">{{ ico('guardar', 16) }} Guardar cambios</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="tarjeta mb-16" id="nueva-quebrada">
+      <div class="cab">
+        <h2>Registrar nueva quebrada</h2>
+        <div class="bajada">Se crea sin lecturas asociadas, por lo que aparecerá como «Sin datos».</div>
+      </div>
+      <form method="post" action="/configuracion/quebrada">
+        <div class="cuerpo">
+          <div class="rejilla r-2 mb-12">
+            <div class="campo">
+              <label for="q-nombre">Nombre de la quebrada</label>
+              <input id="q-nombre" type="text" name="nombre" placeholder="Quebrada Nueva" required>
+            </div>
+            <div class="campo">
+              <label for="q-dep">Departamento</label>
+              <input id="q-dep" type="text" name="departamento" value="Lima" list="lista-dep">
+              <datalist id="lista-dep">
+                {% for d in departamentos %}<option value="{{ d }}">{% endfor %}
+              </datalist>
+            </div>
+            <div class="campo">
+              <label for="q-pro">Provincia</label>
+              <input id="q-pro" type="text" name="provincia" value="Lima">
+            </div>
+            <div class="campo">
+              <label for="q-dis">Distrito</label>
+              <input id="q-dis" type="text" name="distrito" value="Lurigancho-Chosica">
+            </div>
+          </div>
+          <button class="btn" type="submit">{{ ico('mas', 16) }} Registrar en la simulación</button>
+        </div>
+      </form>
+    </section>
+    {% endif %}
+
+    {% if pestana == 'fuentes' %}
+    <section class="tarjeta mb-16">
+      <div class="cab">
+        <h2>Arquitectura de referencia</h2>
+        <div class="bajada">Lo que la propuesta describe y lo que este prototipo implementa.</div>
+      </div>
+      <div class="cuerpo" style="padding:12px 0 0">
+        <table class="tabla">
+          <thead><tr><th>Componente</th><th>Propuesta</th><th>En este prototipo</th></tr></thead>
+          <tbody>
+            <tr><td>Backend</td><td class="sub">Python · FastAPI</td><td>Implementado</td></tr>
+            <tr><td>Motor de umbrales</td><td class="sub">Reglas configurables</td><td>Implementado</td></tr>
+            <tr><td>Panel web</td><td class="sub">Streamlit o React</td><td>HTML/CSS servido por FastAPI</td></tr>
+            <tr><td>Base de datos</td><td class="sub">PostgreSQL</td><td class="sub">Estado en memoria (demostración)</td></tr>
+            <tr><td>Automatización</td><td class="sub">n8n</td><td class="sub">No implementada</td></tr>
+            <tr><td>Mensajería</td><td class="sub">API WhatsApp / SMS</td><td class="sub">Simulada, sin envío</td></tr>
+            <tr><td>Fuentes</td><td class="sub">SENAMHI · INAIGEM</td><td class="sub">No conectadas · series sintéticas</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="tarjeta">
+      <div class="cab"><h2>Historial de parámetros</h2></div>
+      <div class="cuerpo" style="padding:12px 0 0">
+        <table class="tabla">
+          <thead><tr><th>Fecha / hora PET</th><th>Parámetro</th><th>Responsable</th></tr></thead>
+          <tbody>
+            {% for h in historial_parametros %}
+            <tr>
+              <td>{{ h.momento.day }} oct · {{ hora(h.momento) }}</td>
+              <td class="{{ 'nivel-critico' if h.critico }}">{{ h.parametro }}</td>
+              <td class="sub">{{ h.responsable }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="pie-tabla">Trazabilidad de la demostración. Cada cambio recalcula el nivel de las alertas abiertas.</div>
+      </div>
+    </section>
+  </div>
+
+  <div>
+    <section class="tarjeta mb-16">
+      <div class="cab">
+        <div class="flex entre centro-v">
+          <h2>Fuentes y conexiones</h2>
+        </div>
+      </div>
+      <div class="cuerpo">
+        <div class="flex entre centro-v mb-8">
+          <span class="negrita texto-sm">Conector de demostración</span>
+          <span class="pildora p-verde">{{ ico('check-circulo', 11) }} Disponible</span>
+        </div>
+        <p class="texto-sm texto-muted">
+          Última carga simulada: {{ ahora_texto }}. Calidad: datos sintéticos; sin validación externa.
+        </p>
+        <hr class="sep">
+        {% for c in conectores %}
+        <div class="flex gap-8 mb-12" style="align-items:flex-start">
+          {{ ico('enchufe', 16) }}
+          <div>
+            <div class="negrita texto-sm">{{ c.nombre }}</div>
+            <div class="texto-xs texto-muted">{{ c.estado }}</div>
+            <div class="texto-xs texto-muted">{{ c.detalle }}</div>
+          </div>
+        </div>
+        {% endfor %}
+        <div class="flex gap-8" style="flex-wrap:wrap">
+          {% for c in canales %}
+          <span class="pildora p-contorno">{{ ico('circulo', 11) }} {{ c.nombre }} · no conectado</span>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Registro de errores y faltantes</h2></div>
+      <div class="cuerpo">
+        <div class="flex gap-8 mb-12" style="align-items:flex-start">
+          {{ ico('base-datos', 16) }}
+          <div>
+            <div class="negrita texto-sm">Sin información verificada</div>
+            <div class="texto-xs texto-muted">
+              {{ hora(ahora) }} PET · Capas de zonas seguras, rutas, vías afectadas y exposición sin fuente verificada.
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-8" style="align-items:flex-start">
+          {{ ico('enchufe', 16) }}
+          <div class="texto-xs texto-muted">
+            Fuentes externas: sin sincronización. Los conectores propuestos aún no están implementados.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="aviso aviso-info">
+      {{ ico('info', 16) }}
+      <div>
+        <div class="titulo">Arquitectura de referencia</div>
+        <div class="texto">
+          Compatibilidad conceptual con FastAPI/Python, n8n, PostgreSQL y React o Streamlit.
+          No representa una implementación ni modifica proyectos externos.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico, nivel_etiqueta %}
+{% block contenido %}
+
+<div class="encabezado">
+  <div>
+    <h1>Centro de alertas</h1>
+    <div class="bajada">Revisa la evidencia, valida el aviso y gestiona su estado con trazabilidad.</div>
+  </div>
+  <div class="acciones">
+    <span class="marcador-estado">{{ ico('circulo', 13) }} Autoridad · puede validar</span>
+  </div>
+</div>
+
+{% if mensaje %}
+<div class="aviso aviso-exito mb-16">{{ ico('check-circulo', 16) }}<div class="texto" style="color:var(--ink)">{{ mensaje }}</div></div>
+{% endif %}
+
+<div class="rejilla r-4 mb-16">
+  <div class="indicador-simple"><div class="cifra">{{ conteo.activas }}</div><div class="rotulo">Alertas activas</div></div>
+  <div class="indicador-simple"><div class="cifra">{{ conteo.pendiente }}</div><div class="rotulo">Pendientes de revisión</div></div>
+  <div class="indicador-simple"><div class="cifra">{{ conteo.validada }}</div><div class="rotulo">Validadas</div></div>
+  <div class="indicador-simple"><div class="cifra">{{ conteo.enviada }}</div><div class="rotulo">Enviadas</div></div>
+</div>
+
+<form class="filtros" method="get" action="/alertas">
+  <div class="campo">
+    <label for="a-nivel">Riesgo</label>
+    <select id="a-nivel" name="nivel">
+      <option value="">Todos los niveles</option>
+      {% for n in niveles %}
+      <option value="{{ n }}" {{ 'selected' if filtros.nivel == n }}>{{ etiquetas[n] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="a-dep">Departamento</label>
+    <select id="a-dep" name="departamento">
+      <option value="">Todos</option>
+      {% for d in departamentos %}
+      <option value="{{ d }}" {{ 'selected' if filtros.departamento == d }}>{{ d }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="a-fecha">Fecha</label>
+    <input id="a-fecha" type="text" value="{{ fecha_larga(ahora) }}" readonly>
+  </div>
+  <div class="campo">
+    <label for="a-estado">Estado</label>
+    <select id="a-estado" name="estado">
+      <option value="activas" {{ 'selected' if filtros.estado == 'activas' }}>Activas</option>
+      <option value="todas" {{ 'selected' if filtros.estado == 'todas' }}>Todas</option>
+      {% for clave, texto in estados.items() %}
+      <option value="{{ clave }}" {{ 'selected' if filtros.estado == clave }}>{{ texto }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn" type="submit">{{ ico('filtro', 16) }} Filtrar</button>
+</form>
+
+<div class="rejilla r-principal-ancha">
+  <div>
+    <section class="tarjeta">
+      <div class="cab">
+        <h2>Alertas del territorio</h2>
+        <div class="bajada">
+          {{ conteo.activas }} activas y {{ conteo.cerrada }} cerrada{{ 's' if conteo.cerrada != 1 }} · Registros de demostración
+        </div>
+      </div>
+      <div class="cuerpo" style="padding:12px 0 0">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>{{ fecha_larga(ahora) }} / PET</th><th>Ubicación</th><th>Riesgo</th>
+              <th>Estado</th><th>Fuente</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in lista %}
+            {% set q = quebradas[a.quebrada] %}
+            <tr class="clicable {{ 'sel' if seleccionada and a.codigo == seleccionada.codigo }}"
+                onclick="location.href='/alertas?alerta={{ a.codigo }}&estado={{ filtros.estado }}&nivel={{ filtros.nivel }}&departamento={{ filtros.departamento }}'">
+              <td>
+                {% if a.momento.day != ahora.day %}{{ a.momento.day }} oct · {% endif %}{{ hora(a.momento) }}
+              </td>
+              <td>
+                <a href="/quebrada/{{ q.codigo }}">{{ q.nombre }}</a>
+                <div class="sub">{{ q.departamento }}</div>
+              </td>
+              <td>{{ nivel_etiqueta(a.nivel, etiquetas, glifos) }}</td>
+              <td>{{ estados[a.estado] }}</td>
+              <td class="sub">{{ a.fuente }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="texto-muted">Ninguna alerta coincide con los filtros aplicados.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="pie-tabla">
+          Mostrando {{ lista | length }} de {{ total_registros }} registros simulados
+          <span class="paginador"><span>‹</span><span class="negrita">1</span><span>›</span></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="aviso aviso-info mt-16">
+      {{ ico('info', 16) }}
+      <div>
+        <div class="titulo">Riesgo ≠ estado de gestión</div>
+        <div class="texto">
+          Crítico, alto o moderado describen el riesgo simulado. Pendiente, validada, enviada o cerrada
+          describen la revisión y comunicación del aviso.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    {% if seleccionada %}
+    <section class="tarjeta panel-detalle mb-16">
+      <div class="cab-panel">
+        <div style="flex:1">
+          <div class="rotulo-panel">Alerta seleccionada · demo</div>
+          <h3>{{ quebrada_sel.nombre }}</h3>
+        </div>
+        <span style="color:var(--muted-2)">···</span>
+      </div>
+      <div class="cuerpo" style="padding-top:8px">
+        <div class="texto-sm texto-muted">
+          {{ quebrada_sel.distrito }} · {{ quebrada_sel.departamento }} / {{ quebrada_sel.provincia }}
+          {{ fecha_hora(seleccionada.momento) }}
+        </div>
+        <div class="mt-12 mb-8">
+          <span class="pildora p-{{ seleccionada.nivel }}">
+            {{ glifos[seleccionada.nivel] }} {{ etiquetas[seleccionada.nivel] }} · simulado
+          </span>
+        </div>
+        <div>
+          <span class="pildora p-contorno">{{ ico('circulo', 11) }} {{ seleccionada.fuente }} · {{ estados[seleccionada.estado] | lower }}</span>
+        </div>
+        <hr class="sep">
+        <div class="negrita mb-8">Causa y evidencia</div>
+        <p class="texto-sm" style="color:var(--ink-2);line-height:1.6">
+          La lluvia acumulada de {{ seleccionada.acumulado | round(0) | int }} mm/{{ umbrales.ventana_horas }} h
+          {% if seleccionada.acumulado >= umbrales.critico %}
+          supera el umbral crítico configurado de {{ umbrales.critico | round(0) | int }} mm/{{ umbrales.ventana_horas }} h
+          en +{{ '%g' % (seleccionada.acumulado - umbrales.critico) }} mm/{{ umbrales.ventana_horas }} h.
+          {% else %}
+          se ubica por debajo del umbral crítico configurado de {{ umbrales.critico | round(0) | int }} mm/{{ umbrales.ventana_horas }} h.
+          {% endif %}
+        </p>
+        <p class="texto-sm texto-muted">
+          Fuente de demostración · No verificada · Ventana: acumulación móvil de {{ umbrales.ventana_horas }} h
+        </p>
+
+        <div class="aviso aviso-info mb-12">
+          {{ ico('info', 16) }}
+          <div>
+            <div class="titulo">Requiere revisión de autoridad</div>
+            <div class="texto">La detección automática no equivale a un aviso validado.</div>
+          </div>
+        </div>
+
+        <div class="flex gap-8 mb-8">
+          <a class="btn" href="/quebrada/{{ quebrada_sel.codigo }}">Revisar</a>
+          {% if seleccionada.estado == 'pendiente' %}
+          <form method="post" action="/alertas/validar" style="flex:1">
+            <input type="hidden" name="alerta" value="{{ seleccionada.codigo }}">
+            <button class="btn btn-primario btn-bloque" type="submit">Validar simulación</button>
+          </form>
+          {% endif %}
+        </div>
+
+        <form method="post" action="/alertas/estado" class="flex gap-8">
+          <input type="hidden" name="alerta" value="{{ seleccionada.codigo }}">
+          <select name="nuevo_estado" aria-label="Nuevo estado">
+            {% for clave, texto in estados.items() %}
+            <option value="{{ clave }}" {{ 'selected' if clave == seleccionada.estado }}>{{ texto }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn" type="submit">{{ ico('ajustes', 15) }} Gestionar</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <div class="cab"><h2>Historial de avisos y entrega</h2></div>
+      <div class="cuerpo">
+        <p class="texto-sm texto-muted">{{ hora(seleccionada.momento) }} · {{ seleccionada.nota }}</p>
+        <div class="flex gap-8 mb-8" style="flex-wrap:wrap">
+          <span class="pildora p-contorno">{{ ico('sms', 11) }} SMS · sin conectar</span>
+          <span class="pildora p-contorno">{{ ico('chat', 11) }} WhatsApp · sin conectar</span>
+        </div>
+        <div class="nota-fina">Entrega: no disponible. Ningún canal conectado.</div>
+      </div>
+    </section>
+    {% else %}
+    <section class="tarjeta"><div class="cuerpo texto-muted texto-sm">
+      Selecciona una alerta de la tabla para ver su evidencia.
+    </div></section>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

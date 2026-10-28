@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico %}
+{% block contenido %}
+
+<div class="encabezado">
+  <div>
+    <h1>Gestión de notificaciones</h1>
+    <div class="bajada">Prepara comunicaciones preventivas para destinatarios autorizados.</div>
+  </div>
+  <div class="acciones">
+    <span class="marcador-estado">{{ ico('circulo', 13) }} Solo simulación · sin envío real</span>
+  </div>
+</div>
+
+{% if mensaje %}
+<div class="aviso aviso-exito mb-16">{{ ico('check-circulo', 16) }}<div class="texto" style="color:var(--ink)">{{ mensaje }}</div></div>
+{% endif %}
+
+<form method="get" action="/notificaciones/confirmar">
+<div class="rejilla r-principal-ancha">
+  <div>
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Destinatarios autorizados</h2></div>
+      <div class="cuerpo">
+        <div class="rejilla r-2">
+          <div class="campo">
+            <label for="n-loc">Localidad</label>
+            <select id="n-loc" name="quebrada" onchange="this.form.action='/notificaciones';this.form.submit()">
+              {% for q in todas_quebradas %}
+              <option value="{{ q.codigo }}" {{ 'selected' if quebrada_sel.codigo == q.codigo }}>
+                {{ q.nombre }} · {{ q.distrito }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="campo">
+            <label for="n-grupo">Grupo autorizado</label>
+            <select id="n-grupo" name="grupo">
+              <option>Comité local de prevención</option>
+              <option>Autoridades municipales</option>
+              <option>Personal técnico</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex entre centro-v mt-12">
+          <span class="pildora p-azul">
+            {{ ico('circulo', 11) }} {{ quebrada_sel.destinatarios }} destinatarios de prueba
+          </span>
+          <span class="nota-fina">Sin datos personales reales</span>
+        </div>
+        <div class="nota-fina mt-8">
+          {{ quebrada_sel.departamento }} / {{ quebrada_sel.provincia }} · Lista ficticia autorizada para este ejercicio.
+        </div>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <div class="cab"><h2>Canales y plantilla</h2></div>
+      <div class="cuerpo">
+        <div class="canales mb-16">
+          {% for c in canales %}
+          {% set activo = c.nombre in canales_sel %}
+          <label class="canal {{ 'sel' if activo }}">
+            <div class="fila">
+              <input type="checkbox" name="canales" value="{{ c.nombre }}" {{ 'checked' if activo }}>
+              {{ ico('chat' if c.nombre == 'WhatsApp' else 'sms', 17) }}
+              <span class="nombre">{{ c.nombre }}</span>
+            </div>
+            <div class="estado">{{ ico('circulo', 12) }} No conectado</div>
+            <div class="nota">Seleccionado para simulación</div>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div class="campo mb-12">
+          <label for="n-plantilla">Plantilla de comunicación</label>
+          <select id="n-plantilla" name="plantilla"
+                  onchange="this.form.action='/notificaciones';this.form.submit()">
+            {% for clave, p in plantillas.items() %}
+            <option value="{{ clave }}" {{ 'selected' if plantilla_sel == clave }}>{{ p.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="caja-mensaje mb-12">
+          <div class="rotulo">Mensaje de ejemplo</div>
+          <div class="texto">{{ plantilla.texto }}</div>
+        </div>
+
+        <div class="aviso aviso-info mb-12">
+          {{ ico('info', 16) }}
+          <div>
+            <div class="titulo">Plantilla pendiente de validación local</div>
+            <div class="texto">
+              La mención a una zona segura no acredita que exista una zona verificada. Revisa el texto
+              y consulta a la municipalidad antes de cualquier uso real.
+            </div>
+          </div>
+        </div>
+
+        <div class="flex entre centro-v">
+          <span class="nota-fina">No se enviará ningún mensaje real.</span>
+          <button class="btn btn-primario" type="submit">{{ ico('enviar', 16) }} Simular envío</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div>
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Vista previa</h2></div>
+      <div class="cuerpo">
+        <span class="pildora p-azul mb-12" style="display:inline-flex">
+          {{ ico('circulo', 11) }} {{ canales_sel[0] if canales_sel else 'SMS' }} · demostración
+        </span>
+        <div class="vista-previa mt-12">
+          <div class="de">{{ ico('escudo', 15) }} SATQ · Simulación</div>
+          <div class="cuerpo">{{ plantilla.texto }}</div>
+          <div class="hora">{{ ahora_texto }}</div>
+        </div>
+        <div class="nota-fina mt-12">
+          Vista de referencia. WhatsApp y SMS no están conectados.
+        </div>
+      </div>
+    </section>
+
+    <div class="aviso aviso-info">
+      {{ ico('info', 16) }}
+      <div>
+        <div class="titulo">Permisos de autoridad</div>
+        <div class="texto">
+          {{ usuario.nombre }} puede revisar plantillas y gestionar avisos. La simulación no valida
+          el riesgo ni la información local.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</form>
+
+<section class="tarjeta mt-16">
+  <div class="cab"><h2>Historial de comunicaciones · Simulación</h2></div>
+  <div class="cuerpo" style="padding:12px 0 0">
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th>Fecha / hora PET</th><th>Localidad</th><th>Destinatarios</th>
+          <th>Canal</th><th>Resultado simulado</th><th>Entrega real</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in comunicaciones %}
+        <tr class="{{ 'sel' if loop.first }}">
+          <td>{{ c.momento.day }} oct · {{ hora(c.momento) }}</td>
+          <td>{{ todas_quebradas | selectattr('codigo','equalto',c.quebrada) | map(attribute='nombre') | first }}
+            / {{ todas_quebradas | selectattr('codigo','equalto',c.quebrada) | map(attribute='departamento') | first }}</td>
+          <td>{{ c.destinatarios }} de prueba</td>
+          <td>{{ c.canal }}</td>
+          <td>{{ resultados[c.resultado] }}</td>
+          <td class="sub">{{ c.entrega_real }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="pie-tabla">Ningún mensaje fue entregado. Todos los registros son ficticios.</div>
+  </div>
+</section>
+
+{% endblock %}

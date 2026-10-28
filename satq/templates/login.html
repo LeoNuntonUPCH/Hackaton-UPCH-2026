@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bienvenido a SATQ Digital</title>
+<link rel="stylesheet" href="/static/css/satq.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.5 18.5 9 6.5l3.4 6.2L15 8.5l6.5 10z' fill='none' stroke='%231570EF' stroke-width='2'/%3E%3C/svg%3E">
+</head>
+<body>
+{% from "parciales/iconos.html" import ico, logo %}
+<div class="login">
+
+  <section class="login-arte">
+    <div class="marca">
+      <div class="marca-logo">{{ logo(21) }}</div>
+      <div>
+        <div class="marca-nombre">SATQ Digital</div>
+        <div class="marca-bajada">Prevención territorial · Perú</div>
+      </div>
+    </div>
+
+    <div class="rotulo">Sistema de alerta temprana de quebradas del Perú</div>
+    <h1>Anticiparnos al riesgo es proteger vidas</h1>
+    <div class="bajada">Información territorial para una prevención compartida.</div>
+
+    <div class="ilustracion">
+      <svg viewBox="0 0 560 240" width="100%" role="img" style="display:block;height:auto"
+           aria-label="Ilustración de dos cerros separados por el cauce de una quebrada">
+        <defs>
+          <linearGradient id="cerro" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#2B5A80"/>
+            <stop offset="100%" stop-color="#1B4162"/>
+          </linearGradient>
+          <linearGradient id="cerro2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#23506F" stop-opacity=".9"/>
+            <stop offset="100%" stop-color="#17395A"/>
+          </linearGradient>
+        </defs>
+        <!-- Macizo izquierdo -->
+        <path d="M18 198 118 62l64 76 32-36 32 96z" fill="url(#cerro)"/>
+        <path d="M118 62l64 76-24 60H74z" fill="#1E4668" opacity=".5"/>
+        <!-- Macizo derecho -->
+        <path d="M258 198 312 124 362 66l54 66 40-40 86 106z" fill="url(#cerro2)"/>
+        <path d="M362 66l54 66-26 66h-82z" fill="#1A3F62" opacity=".45"/>
+        <!-- Cauce de la quebrada entre ambos -->
+        <path d="M238 112 252 112 272 198 222 198z" fill="#123451"/>
+        <path d="M244 116c-3 24 6 36 0 54s4 20 1 28" stroke="#4FC3C0" stroke-width="4.5"
+              fill="none" stroke-linecap="round" opacity=".9"/>
+        <!-- Caseríos en la ladera derecha -->
+        <g stroke="#7FA9CC" stroke-width="1.6" fill="none" opacity=".85">
+          <path d="M438 152h20v16h-20zM442 152l8-8 8 8"/>
+          <path d="M466 158h16v10h-16zM470 158l6-6 6 6"/>
+          <path d="M412 162h14v6h-14z"/>
+        </g>
+        <path d="M18 198h524" stroke="#2E5F86" stroke-width="2" opacity=".5"/>
+      </svg>
+    </div>
+
+    <div class="pie">
+      <hr>
+      Plataforma de demostración · Sin monitoreo oficial en vivo<br>
+      SATQ Digital · Perú / 2026
+    </div>
+  </section>
+
+  <section class="login-form">
+    <div class="acceso">Acceso para autoridades y personal técnico</div>
+
+    <div class="caja">
+      <span class="pildora p-azul">{{ ico('circulo', 11) }} Entorno de demostración</span>
+      <h2>Bienvenido a SATQ Digital</h2>
+      <div class="bajada">Ingresa con tu cuenta de trabajo para consultar y gestionar información territorial.</div>
+
+      {% if error %}
+      <div class="aviso aviso-error mb-16">{{ ico('alerta', 16) }}<div class="texto" style="color:var(--ink)">{{ error }}</div></div>
+      {% endif %}
+
+      <form method="post" action="/login">
+        <div class="campo">
+          <label for="correo">Correo electrónico</label>
+          <div class="input-icono">
+            <input id="correo" type="email" name="correo" value="{{ correo }}" required>
+            {{ ico('correo', 16) }}
+          </div>
+        </div>
+        <div class="campo">
+          <label for="clave">Contraseña</label>
+          <div class="input-icono">
+            <input id="clave" type="password" name="clave" value="demostracion">
+            {{ ico('ojo', 16) }}
+          </div>
+        </div>
+        <div class="fila-opciones">
+          <label><input type="checkbox" name="recordar"> Recordar mi correo</label>
+          <a href="#">Recuperar contraseña</a>
+        </div>
+        <button class="btn btn-primario btn-bloque" type="submit">
+          {{ ico('flecha-der', 16) }} Iniciar sesión
+        </button>
+      </form>
+
+      <div class="nota-fina mt-12">
+        El icono del ojo representa el control para mostrar contraseña. Formulario estático;
+        no autentica usuarios.
+      </div>
+
+      <div class="aviso aviso-azul mt-16">
+        {{ ico('candado', 16) }}
+        <div>
+          <div class="titulo">Acceso según tu rol</div>
+          <div class="texto">
+            Autoridad: revisa y valida alertas. Personal técnico: analiza datos y configura umbrales.
+          </div>
+        </div>
+      </div>
+
+      <div class="separador">¿Solo necesitas información?</div>
+      <a class="btn btn-bloque" href="/dashboard">{{ ico('usuarios', 16) }} Ir a consulta ciudadana</a>
+    </div>
+
+    <div class="pie">
+      Información de demostración · Sin aval oficial atribuido · Anticiparnos al riesgo es proteger vidas
+    </div>
+  </section>
+</div>
+</body>
+</html>

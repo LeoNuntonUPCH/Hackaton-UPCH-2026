@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico, nivel_etiqueta %}
+{% block contenido %}
+
+<div class="encabezado">
+  <div>
+    <h1>Monitoreo territorial</h1>
+    <div class="bajada">Una mirada priorizada al territorio y a las alertas que requieren revisión.</div>
+  </div>
+  <div class="acciones">
+    <a class="btn btn-azul-claro" href="/mapa?quebrada={{ filtros.quebrada }}">
+      {{ ico('mapa-libro', 16) }} Ver mapa de riesgo
+    </a>
+  </div>
+</div>
+
+<form class="filtros" method="get" action="/dashboard">
+  <div class="campo">
+    <label for="f-dep">Departamento</label>
+    <select id="f-dep" name="departamento">
+      <option value="">Todos</option>
+      {% for d in departamentos %}
+      <option value="{{ d }}" {{ 'selected' if filtros.departamento == d }}>{{ d }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="f-pro">Provincia</label>
+    <select id="f-pro" name="provincia">
+      <option value="">Todas</option>
+      {% for p in provincias %}
+      <option value="{{ p }}" {{ 'selected' if filtros.provincia == p }}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="f-dis">Distrito</label>
+    <select id="f-dis" name="distrito">
+      <option value="">Todos</option>
+      {% for d in distritos %}
+      <option value="{{ d }}" {{ 'selected' if filtros.distrito == d }}>{{ d }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="f-que">Quebrada</label>
+    <select id="f-que" name="quebrada">
+      {% for q in quebradas %}
+      <option value="{{ q.codigo }}" {{ 'selected' if filtros.quebrada == q.codigo }}>{{ q.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primario" type="submit">{{ ico('ajustes', 16) }} Aplicar filtros</button>
+</form>
+
+<div class="rejilla r-4 mb-16">
+  <div class="indicador">
+    <div class="txt">
+      <div class="rotulo">Zonas monitoreadas</div>
+      <div class="cifra">{{ total_monitoreadas }}</div>
+      <div class="nota">Quebradas de ejemplo</div>
+    </div>
+    <div class="icono">{{ ico('quebrada', 17) }}</div>
+  </div>
+  <div class="indicador">
+    <div class="txt">
+      <div class="rotulo">Alertas activas</div>
+      <div class="cifra">{{ conteo.activas }}</div>
+      <div class="nota">Pendientes y gestionadas</div>
+    </div>
+    <div class="icono">{{ ico('campana', 17) }}</div>
+  </div>
+  <div class="indicador">
+    <div class="txt">
+      <div class="rotulo">Localidades en riesgo</div>
+      <div class="cifra">{{ localidades_riesgo }}</div>
+      <div class="nota">Exposición no verificada</div>
+    </div>
+    <div class="icono">{{ ico('pin', 17) }}</div>
+  </div>
+  <div class="indicador">
+    <div class="txt">
+      <div class="rotulo">Última actualización</div>
+      <div class="cifra">{{ hora(ahora) }}</div>
+      <div class="nota">PET · {{ fecha_larga(ahora) }}</div>
+    </div>
+    <div class="icono">{{ ico('reloj', 17) }}</div>
+  </div>
+</div>
+
+<div class="rejilla r-principal mb-16">
+  <section class="tarjeta">
+    <div class="cab"><h2>Mapa de riesgo del Perú</h2></div>
+    <div class="cuerpo">
+      <div class="mapa-caja">
+        {{ mapa | safe }}
+        <div class="mapa-controles">
+          <div class="norte">N ↑</div>
+          <button type="button" aria-label="Acercar (referencial)">+</button>
+          <button type="button" aria-label="Alejar (referencial)">−</button>
+          <button type="button" aria-label="Centrar (referencial)">{{ ico('centrar', 14) }}</button>
+        </div>
+        <div class="mapa-nota">Cartografía referencial · Marcadores de demostración · Sin rutas verificadas</div>
+      </div>
+      <div class="leyenda-mapa">
+        <span style="color:{{ colores.bajo }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Bajo</span></span>
+        <span style="color:{{ colores.moderado }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Moderado</span></span>
+        <span style="color:{{ colores.alto }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Alto</span></span>
+        <span style="color:{{ colores.critico }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Crítico</span></span>
+        <span style="color:{{ colores.sin_datos }}"><i class="punto-leyenda"></i> <span style="color:var(--ink-2)">Sin datos</span></span>
+        {% if quebrada_sel %}
+        <span class="pildora p-azul" style="margin-left:auto">
+          {{ ico('circulo', 11) }} {{ quebrada_sel.departamento }} / {{ quebrada_sel.nombre }}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="tarjeta">
+    <div class="cab">
+      <div class="flex entre centro-v">
+        <h2>Alertas recientes</h2>
+        <a class="texto-sm" href="/alertas">Ver todas ›</a>
+      </div>
+      <div class="bajada">{{ conteo.activas }} activas · Escenario simulado</div>
+    </div>
+    <div class="cuerpo">
+      {% for a in alertas_recientes %}
+      {% set q = todas_quebradas | selectattr('codigo', 'equalto', a.quebrada) | first %}
+      <div class="alerta-mini {{ 'critica' if a.nivel == 'critico' }}">
+        <div class="fila">
+          <span class="nombre">{{ q.nombre }}</span>
+          <span class="derecha">{{ nivel_etiqueta(a.nivel, etiquetas, glifos) }}</span>
+        </div>
+        <div class="meta">{{ q.distrito }} · {{ q.departamento }} · {{ hora(a.momento) }} PET</div>
+        <div class="meta">{{ a.fuente }} · {{ estados[a.estado] | lower }}</div>
+        {% if a.estado == 'pendiente' %}
+        <a class="btn btn-sm btn-azul-claro" href="/alertas?alerta={{ a.codigo }}">Revisar alerta</a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="rejilla r-principal">
+  <section class="tarjeta">
+    <div class="cab"><h2>Lluvia acumulada · {{ quebrada_sel.nombre if quebrada_sel else '—' }}</h2></div>
+    <div class="cuerpo">
+      {{ grafico | safe }}
+      <div class="leyenda-grafico">
+        <span class="obs">Observación simulada</span>
+        <span class="umb">Umbral crítico: {{ umbrales.critico | round(0) | int }} mm/{{ umbrales.ventana_horas }} h</span>
+        <span class="eje-nota">Hora PET (UTC−5)</span>
+      </div>
+      <div class="nota-fina mt-8">
+        Acumulado móvil de {{ umbrales.ventana_horas }} h · mm/{{ umbrales.ventana_horas }} h
+      </div>
+    </div>
+  </section>
+
+  <section class="tarjeta">
+    <div class="cab"><h2>Evolución del riesgo</h2></div>
+    <div class="cuerpo">
+      <div class="flex centro-v gap-8 mb-12" style="color:var(--rojo);font-weight:600">
+        {{ ico('tendencia', 18) }}
+        <span>{% if serie_fin and serie_inicio is not none and serie_fin > serie_inicio %}Incremento observado{% else %}Sin incremento observado{% endif %}</span>
+      </div>
+      <div class="barras-nivel">
+        <div><div class="b" style="background:{{ colores.moderado }}"></div><div class="et">Moderado</div></div>
+        <div><div class="b" style="background:{{ colores.alto }}"></div><div class="et">Alto</div></div>
+        <div><div class="b" style="background:{{ colores.critico }}"></div><div class="et">Crítico</div></div>
+      </div>
+      <p class="texto-sm texto-muted" style="line-height:1.6">
+        {% if serie_inicio is not none and serie_fin is not none %}
+        La lluvia acumulada pasó de {{ serie_inicio | round(0) | int }} a {{ serie_fin | round(0) | int }}
+        mm/{{ umbrales.ventana_horas }} h en las observaciones mostradas. Describe el registro; no es una predicción.
+        {% else %}
+        No hay lecturas asociadas a esta quebrada en el escenario de demostración.
+        {% endif %}
+      </p>
+      <div class="nota-fina">{{ quebrada_sel.nombre if quebrada_sel else '—' }} · Fuente de demostración</div>
+    </div>
+  </section>
+</div>
+
+{% endblock %}

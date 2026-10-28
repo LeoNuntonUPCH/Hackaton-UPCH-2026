@@ -1,0 +1,14 @@
+# SATQ Digital — dependencias de la versión FastAPI (app.py)
+#
+#   pip install -r requirements.txt
+#
+# Si la instalación falla o no hay internet en la PC de la demostración,
+# usa servidor_demo.py: solo necesita Jinja2 —incluido en Anaconda— y la
+# librería estándar de Python. Sirve exactamente las mismas pantallas.
+
+fastapi>=0.110
+uvicorn>=0.27
+jinja2>=3.1
+
+# No hace falta python-multipart: los formularios del prototipo son
+# urlencoded (no suben archivos) y Starlette los procesa sin esa librería.

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titulo }} · SATQ Digital</title>
+<meta name="description" content="Prototipo de demostración del Sistema de Alerta Temprana de Quebradas del Perú. Datos simulados.">
+<link rel="stylesheet" href="/static/css/satq.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.5 18.5 9 6.5l3.4 6.2L15 8.5l6.5 10z' fill='none' stroke='%231570EF' stroke-width='2'/%3E%3C/svg%3E">
+</head>
+<body>
+{% from "parciales/iconos.html" import ico, logo %}
+<div class="app">
+
+  <aside class="lateral">
+    <div class="marca">
+      <div class="marca-logo">{{ logo(21) }}</div>
+      <div>
+        <div class="marca-nombre">SATQ Digital</div>
+        <div class="marca-bajada">Prevención territorial · Perú</div>
+      </div>
+    </div>
+    <div class="lateral-sub">Sistema de Alerta Temprana de Quebradas del Perú</div>
+
+    <nav class="nav">
+      {% set enlaces = [
+        ('dashboard', '/dashboard', 'Dashboard', 'dashboard'),
+        ('mapa', '/mapa', 'Mapa de riesgo', 'mapa'),
+        ('quebradas', '/quebradas', 'Quebradas', 'quebrada'),
+        ('alertas', '/alertas', 'Alertas', 'campana'),
+        ('notificaciones', '/notificaciones', 'Notificaciones', 'enviar'),
+        ('reportes', '/reportes', 'Reportes', 'reporte'),
+        ('configuracion', '/configuracion', 'Configuración', 'config')
+      ] %}
+      {% for clave, url, texto, icono in enlaces %}
+      <a href="{{ url }}" class="{{ 'activo' if seccion == clave }}">
+        {{ ico(icono) }} <span>{{ texto }}</span>
+        {% if clave == 'alertas' and alertas_activas %}<span class="conteo">{{ alertas_activas }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </nav>
+
+    <div class="lateral-pie">
+      <div class="entorno">{{ ico('matraz', 15) }} Entorno de demostración</div>
+      <hr>
+      <div class="lema">Anticiparnos al riesgo es proteger vidas</div>
+      <div class="firma">SATQ Digital · Perú · Prototipo institucional / 2026</div>
+    </div>
+  </aside>
+
+  <main class="principal">
+    <header class="barra-superior">
+      <span class="ubicacion">{{ ico('pin', 16) }} Perú / Lima</span>
+      <span class="marca-tiempo">{{ ahora_texto }}</span>
+      <div class="derecha">
+        {{ ico('campana', 19) }}
+        <div class="usuario">
+          <div class="texto">
+            <div class="nombre">{{ usuario.nombre }}</div>
+            <div class="rol">{{ usuario.rol }}</div>
+          </div>
+          <div class="avatar">{{ usuario.iniciales }}</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="aviso-demo">
+      {{ ico('info', 15) }}
+      Demostración · Datos simulados · No usar para decisiones de emergencia
+    </div>
+
+    <div class="contenido">
+      {% block contenido %}{% endblock %}
+    </div>
+  </main>
+</div>
+</body>
+</html>

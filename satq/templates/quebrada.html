@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico, nivel_etiqueta %}
+{% block contenido %}
+
+<div class="migas">
+  <a href="/quebradas">Quebradas</a>
+  <span class="sep">›</span>
+  <span class="actual">{{ quebrada_sel.departamento }} / {{ quebrada_sel.nombre }}</span>
+</div>
+
+<div class="encabezado">
+  <div>
+    <h1>Quebrada {{ quebrada_sel.nombre }}</h1>
+    <div class="bajada">{{ quebrada_sel.ubicacion_larga }}</div>
+  </div>
+  <div class="acciones">
+    <a class="btn" href="/mapa?quebrada={{ quebrada_sel.codigo }}">{{ ico('flecha-izq', 16) }} Volver al mapa</a>
+    <a class="btn" href="/alertas?estado=todas">{{ ico('reporte', 16) }} Consultar historial</a>
+  </div>
+</div>
+
+<div class="rejilla r-3 mb-16">
+  <div class="tarjeta" style="padding:15px 18px">
+    <div class="flex gap-12">
+      <div style="width:38px;height:38px;border-radius:9px;background:var(--rojo-50);color:var(--rojo);display:grid;place-items:center;flex:0 0 38px">
+        {{ ico('alerta', 19) }}
+      </div>
+      <div>
+        <div class="rotulo-panel">Riesgo actual · simulado</div>
+        <div style="font-size:25px;font-weight:700;letter-spacing:-.03em;color:{{ evaluacion.color }}">
+          {{ evaluacion.etiqueta }}
+        </div>
+        <div class="nota-fina">
+          {% if alerta_activa %}{{ estados[alerta_activa.estado] }} por autoridad{% else %}Sin alerta abierta en la simulación{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="indicador">
+    <div class="txt">
+      <div class="rotulo">Precipitación acumulada</div>
+      <div class="cifra">
+        {% if evaluacion.acumulado is not none %}{{ evaluacion.acumulado | round(0) | int }} mm / {{ umbrales.ventana_horas }} h{% else %}Sin dato{% endif %}
+      </div>
+      <div class="nota">Umbral crítico: {{ umbrales.critico | round(0) | int }} mm/{{ umbrales.ventana_horas }} h</div>
+    </div>
+    <div class="icono">{{ ico('lluvia', 17) }}</div>
+  </div>
+  <div class="indicador">
+    <div class="txt">
+      <div class="rotulo">Última observación</div>
+      <div class="cifra">{{ hora(ahora) }} PET</div>
+      <div class="nota">{{ fecha_larga(ahora) }} · Fuente de demostración</div>
+    </div>
+    <div class="icono">{{ ico('reloj', 17) }}</div>
+  </div>
+</div>
+
+<div class="rejilla r-principal">
+  <div>
+    <section class="tarjeta mb-16">
+      <div class="cab">
+        <h2>Precipitación y evolución de las últimas horas</h2>
+        <div class="bajada">
+          Observación simulada frente al umbral configurado para la misma ventana de {{ umbrales.ventana_horas }} h.
+        </div>
+      </div>
+      <div class="cuerpo">
+        {{ grafico | safe }}
+        <div class="leyenda-grafico">
+          <span class="obs">Observación simulada</span>
+          <span class="umb">Umbral crítico: {{ umbrales.critico | round(0) | int }} mm/{{ umbrales.ventana_horas }} h</span>
+          <span class="eje-nota">Hora PET (UTC−5)</span>
+        </div>
+        <div class="nota-fina mt-8 mb-12">
+          Acumulado móvil de {{ umbrales.ventana_horas }} h · mm/{{ umbrales.ventana_horas }} h
+        </div>
+        <div class="aviso aviso-info">
+          {{ ico('info', 16) }}
+          <div>
+            <div class="titulo">{{ evaluacion.texto_excedente }}</div>
+            <div class="texto">
+              {% if serie_fin is not none %}
+              La serie termina en {{ serie_fin | round(0) | int }} mm/{{ umbrales.ventana_horas }} h.
+              {% endif %}
+              El registro mostrado no representa una predicción ni un tiempo de llegada.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <div class="cab"><h2>Historial de alertas</h2></div>
+      <div class="cuerpo" style="padding:12px 0 0">
+        {% if historial %}
+        <table class="tabla">
+          <thead>
+            <tr><th>Fecha / hora PET</th><th>Nivel de riesgo</th><th>Estado de gestión</th><th>Fuente</th></tr>
+          </thead>
+          <tbody>
+            {% for a in historial %}
+            <tr class="{{ 'sel' if loop.first }}">
+              <td>{{ a.momento.day }} {{ ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][a.momento.month-1] }} · {{ hora(a.momento) }}</td>
+              <td>{{ nivel_etiqueta(a.nivel, etiquetas, glifos) }}</td>
+              <td>{{ estados[a.estado] }}</td>
+              <td class="sub">{{ a.fuente }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="pie-tabla">Registros de demostración. Todos los eventos son ficticios.</div>
+        {% else %}
+        <div class="cuerpo texto-muted texto-sm" style="padding:18px">
+          Esta quebrada no tiene alertas registradas en el escenario de demostración.
+        </div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <div>
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Recomendaciones preventivas</h2></div>
+      <div class="cuerpo">
+        <div class="lista-definicion">
+          {% for r in recomendaciones %}
+          <div class="item">
+            {{ ico(['flecha-arriba-der','escudo','olas'][loop.index0 % 3], 16) }}
+            <div>
+              <div class="t">{{ r.titulo }}</div>
+              <div class="d">{{ r.texto }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Disponibilidad de información</h2></div>
+      <div class="cuerpo">
+        <span class="pildora p-azul">{{ ico('circulo', 11) }} Fuente de demostración</span>
+        <p class="texto-sm texto-muted mt-12">
+          Actualización: {{ ahora_texto }}. Datos de exposición y riesgo no verificados.
+        </p>
+        <hr class="sep">
+        <div class="negrita texto-sm mb-8">Zonas seguras y rutas</div>
+        <p class="texto-sm texto-muted">
+          Sin información verificada. Consulta a tu municipalidad.
+        </p>
+      </div>
+    </section>
+
+    {% if alerta_activa %}
+    <a class="btn btn-primario btn-bloque" href="/alertas?alerta={{ alerta_activa.codigo }}&estado=todas">
+      {{ ico('campana', 16) }} Revisar alerta asociada
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

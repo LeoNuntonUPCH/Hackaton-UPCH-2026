@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico, nivel_etiqueta %}
+{% block contenido %}
+
+<div class="encabezado">
+  <div>
+    <h1>Quebradas monitoreadas</h1>
+    <div class="bajada">Listado completo del escenario, con el nivel calculado por el motor de umbrales.</div>
+  </div>
+  <div class="acciones">
+    <a class="btn btn-azul-claro" href="/mapa">{{ ico('mapa-libro', 16) }} Ver en el mapa</a>
+  </div>
+</div>
+
+<div class="rejilla r-4 mb-16">
+  {% for n in ['bajo', 'moderado', 'alto', 'critico'] %}
+  <div class="indicador-simple">
+    <div class="cifra" style="color:{{ colores[n] }}">{{ resumen[n] }}</div>
+    <div class="rotulo">{{ etiquetas[n] }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<form class="filtros" method="get" action="/quebradas">
+  <div class="campo">
+    <label for="q-dep">Departamento</label>
+    <select id="q-dep" name="departamento" onchange="this.form.submit()">
+      <option value="">Todos</option>
+      {% for d in departamentos %}
+      <option value="{{ d }}" {{ 'selected' if filtros.departamento == d }}>{{ d }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+<section class="tarjeta">
+  <div class="cab">
+    <h2>{{ quebradas | length }} quebradas en el escenario</h2>
+    <div class="bajada">
+      Nivel calculado con la ventana móvil de {{ umbrales.ventana_horas }} h y el umbral crítico
+      de {{ umbrales.critico | round(0) | int }} mm/{{ umbrales.ventana_horas }} h vigentes.
+    </div>
+  </div>
+  <div class="cuerpo" style="padding:12px 0 0">
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th>Quebrada</th><th>Distrito</th><th>Provincia</th><th>Departamento</th>
+          <th>Acumulado</th><th>Nivel</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in quebradas %}
+        {% set ev = evaluaciones[q.codigo] %}
+        <tr class="clicable" onclick="location.href='/quebrada/{{ q.codigo }}'">
+          <td><a href="/quebrada/{{ q.codigo }}">{{ q.nombre }}</a></td>
+          <td class="sub">{{ q.distrito }}</td>
+          <td class="sub">{{ q.provincia }}</td>
+          <td class="sub">{{ q.departamento }}</td>
+          <td>{% if ev.acumulado is not none %}{{ ev.acumulado }} mm/{{ umbrales.ventana_horas }} h{% else %}<span class="sub">Sin dato</span>{% endif %}</td>
+          <td>{{ nivel_etiqueta(ev.nivel, etiquetas, glifos) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="pie-tabla">Series sintéticas y deterministas. Ninguna proviene de SENAMHI ni de INAIGEM.</div>
+  </div>
+</section>
+
+{% endblock %}

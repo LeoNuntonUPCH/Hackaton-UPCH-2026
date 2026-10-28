@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico %}
+{% set titulo = "No encontrado" %}
+{% block contenido %}
+<div class="centrado">
+  <section class="tarjeta tarjeta-confirmacion">
+    <div class="cab">
+      <div class="icono" style="background:var(--rojo-50);color:var(--rojo)">{{ ico('alerta', 21) }}</div>
+      <div>
+        <h2>Recurso no encontrado</h2>
+        <div class="texto-sm texto-muted">
+          La quebrada o la página solicitada no existe en el escenario de demostración.
+        </div>
+      </div>
+    </div>
+    <div class="acciones">
+      <a class="btn" href="/quebradas">Ver quebradas</a>
+      <a class="btn btn-primario" href="/dashboard">Volver al dashboard</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

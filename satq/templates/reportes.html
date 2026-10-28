@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico %}
+{% block contenido %}
+
+<div class="encabezado">
+  <div>
+    <h1>Reportes del escenario</h1>
+    <div class="bajada">Resumen del estado simulado al {{ ahora_texto }}.</div>
+  </div>
+  <div class="acciones">
+    <a class="btn btn-azul-claro" href="/api/resumen" target="_blank">{{ ico('base-datos', 16) }} Ver datos en JSON</a>
+  </div>
+</div>
+
+<div class="rejilla r-4 mb-16">
+  {% for n in ['bajo', 'moderado', 'alto', 'critico'] %}
+  <div class="indicador">
+    <div class="txt">
+      <div class="rotulo">Quebradas en nivel {{ etiquetas[n] | lower }}</div>
+      <div class="cifra" style="color:{{ colores[n] }}">{{ resumen[n] }}</div>
+      <div class="nota">de {{ total_quebradas }} monitoreadas</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="rejilla r-principal">
+  <div>
+    <section class="tarjeta mb-16">
+      <div class="cab">
+        <h2>Distribución por departamento</h2>
+        <div class="bajada">
+          Calculada con el umbral crítico vigente de {{ umbrales.critico | round(0) | int }} mm/{{ umbrales.ventana_horas }} h.
+        </div>
+      </div>
+      <div class="cuerpo" style="padding:12px 0 0">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>Departamento</th><th>Bajo</th><th>Moderado</th><th>Alto</th>
+              <th>Crítico</th><th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for dep, fila in por_departamento.items() %}
+            <tr>
+              <td class="negrita">{{ dep }}</td>
+              <td>{{ fila.bajo }}</td>
+              <td>{{ fila.moderado }}</td>
+              <td>{{ fila.alto }}</td>
+              <td class="{{ 'nivel-critico negrita' if fila.critico }}">{{ fila.critico }}</td>
+              <td>{{ fila.total }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="pie-tabla">Conteos derivados de series sintéticas. No representan exposición real.</div>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <div class="cab"><h2>Comunicaciones simuladas</h2></div>
+      <div class="cuerpo" style="padding:12px 0 0">
+        <table class="tabla">
+          <thead>
+            <tr><th>Fecha / hora PET</th><th>Canal</th><th>Destinatarios</th><th>Resultado simulado</th></tr>
+          </thead>
+          <tbody>
+            {% for c in comunicaciones %}
+            <tr>
+              <td>{{ c.momento.day }} oct · {{ hora(c.momento) }}</td>
+              <td>{{ c.canal }}</td>
+              <td>{{ c.destinatarios }} de prueba</td>
+              <td class="sub">{{ resultados[c.resultado] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="pie-tabla">Entrega real: no disponible en ningún caso. Ningún canal está conectado.</div>
+      </div>
+    </section>
+  </div>
+
+  <div>
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Gestión de alertas</h2></div>
+      <div class="cuerpo">
+        <div class="lista-definicion">
+          {% for clave, texto in estados.items() %}
+          <div class="item">
+            {{ ico('campana', 16) }}
+            <div style="flex:1">
+              <div class="flex entre">
+                <span class="t">{{ texto }}</span>
+                <span class="negrita">{{ conteo[clave] }}</span>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Parámetros vigentes</h2></div>
+      <div class="cuerpo">
+        <div class="texto-sm" style="line-height:2">
+          <div class="flex entre"><span class="texto-muted">Ventana</span><span class="negrita">{{ umbrales.ventana_horas }} h móvil</span></div>
+          <div class="flex entre"><span class="texto-muted">Moderado</span><span class="negrita">≥ {{ umbrales.moderado | round(0) | int }} mm</span></div>
+          <div class="flex entre"><span class="texto-muted">Alto</span><span class="negrita">≥ {{ umbrales.alto | round(0) | int }} mm</span></div>
+          <div class="flex entre"><span class="texto-muted">Crítico</span><span class="negrita nivel-critico">≥ {{ umbrales.critico | round(0) | int }} mm</span></div>
+        </div>
+        <hr class="sep">
+        <div class="nota-fina">
+          Último cambio: {{ historial_parametros[0].parametro if historial_parametros else 'sin cambios' }}
+        </div>
+      </div>
+    </section>
+
+    <div class="aviso aviso-info">
+      {{ ico('info', 16) }}
+      <div>
+        <div class="titulo">Alcance del reporte</div>
+        <div class="texto">
+          Describe el escenario simulado en memoria. Al reiniciar el servidor, los valores vuelven
+          a su punto inicial.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
