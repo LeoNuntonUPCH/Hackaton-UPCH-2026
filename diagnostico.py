@@ -22,6 +22,24 @@ def titulo(texto: str) -> None:
     print("-" * ANCHO)
 
 
+def comprobar_app() -> int:
+    """Modo corto (--check), usado por iniciar.bat.
+
+    Intenta importar app.py y, si falla, imprime el motivo en una línea en
+    vez de un traceback de cuarenta. Devuelve 0 si carga, 1 si no.
+    """
+    try:
+        import app  # noqa: F401
+    except Exception as e:  # noqa: BLE001
+        mensaje = " ".join(str(e).split())
+        if len(mensaje) > 240:
+            mensaje = mensaje[:240] + "..."
+        print(f"  Motivo: {type(e).__name__}")
+        print(f"  {mensaje}")
+        return 1
+    return 0
+
+
 def main() -> int:
     print("=" * ANCHO)
     print("  SATQ Digital · diagnóstico de arranque")
@@ -127,4 +145,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if "--check" in sys.argv:
+        sys.exit(comprobar_app())
     sys.exit(main())

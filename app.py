@@ -17,7 +17,7 @@ Documentación automática de la API: http://127.0.0.1:8000/docs
 
 from __future__ import annotations
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -161,8 +161,12 @@ async def confirmar_envio(request: Request) -> RedirectResponse:
     return RedirectResponse(destino, status_code=303)
 
 
-@app.post("/configuracion/umbrales", include_in_schema=False)
-async def guardar_umbrales(request: Request) -> HTMLResponse | RedirectResponse:
+# `response_model=None` es necesario porque esta ruta devuelve dos tipos de
+# respuesta distintos segun si los umbrales son validos. Sin ello, FastAPI
+# intenta construir un modelo Pydantic a partir de la union y falla al
+# importar el modulo.
+@app.post("/configuracion/umbrales", include_in_schema=False, response_model=None)
+async def guardar_umbrales(request: Request) -> Response:
     formulario = dict(await request.form())
     destino, errores = vistas.accion_umbrales(ESTADO, formulario)
     if errores:
