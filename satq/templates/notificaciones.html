@@ -8,7 +8,13 @@
     <div class="bajada">Prepara comunicaciones preventivas para destinatarios autorizados.</div>
   </div>
   <div class="acciones">
+    {% if envio_real %}
+    <span class="marcador-estado" style="color:var(--verde-700)">
+      {{ ico('check-circulo', 13) }} Twilio conectado · envía de verdad a {{ destinatarios_prueba | length }} número(s) de prueba
+    </span>
+    {% else %}
     <span class="marcador-estado">{{ ico('circulo', 13) }} Solo simulación · sin envío real</span>
+    {% endif %}
   </div>
 </div>
 
@@ -66,8 +72,12 @@
               {{ ico('chat' if c.nombre == 'WhatsApp' else 'sms', 17) }}
               <span class="nombre">{{ c.nombre }}</span>
             </div>
-            <div class="estado">{{ ico('circulo', 12) }} No conectado</div>
-            <div class="nota">Seleccionado para simulación</div>
+            <div class="estado">
+              {{ ico('check-circulo' if c.conectado else 'circulo', 12) }} {{ c.detalle }}
+            </div>
+            <div class="nota">
+              {% if c.conectado %}Enviará de verdad a los destinatarios de prueba{% else %}Seleccionado para simulación{% endif %}
+            </div>
           </label>
           {% endfor %}
         </div>
@@ -99,8 +109,15 @@
         </div>
 
         <div class="flex entre centro-v">
+          {% if envio_real %}
+          <span class="nota-fina" style="color:var(--verde-700)">
+            Se enviará de verdad a: {{ destinatarios_prueba | join(', ') }}
+          </span>
+          <button class="btn btn-primario" type="submit">{{ ico('enviar', 16) }} Enviar de verdad</button>
+          {% else %}
           <span class="nota-fina">No se enviará ningún mensaje real.</span>
           <button class="btn btn-primario" type="submit">{{ ico('enviar', 16) }} Simular envío</button>
+          {% endif %}
         </div>
       </div>
     </section>
@@ -110,16 +127,21 @@
     <section class="tarjeta mb-16">
       <div class="cab"><h2>Vista previa</h2></div>
       <div class="cuerpo">
-        <span class="pildora p-azul mb-12" style="display:inline-flex">
-          {{ ico('circulo', 11) }} {{ canales_sel[0] if canales_sel else 'SMS' }} · demostración
+        <span class="pildora {{ 'p-verde' if envio_real else 'p-azul' }} mb-12" style="display:inline-flex">
+          {{ ico('check-circulo' if envio_real else 'circulo', 11) }}
+          {{ canales_sel[0] if canales_sel else 'SMS' }} · {{ 'real' if envio_real else 'demostración' }}
         </span>
         <div class="vista-previa mt-12">
-          <div class="de">{{ ico('escudo', 15) }} SATQ · Simulación</div>
+          <div class="de">{{ ico('escudo', 15) }} SATQ {{ '· Twilio' if envio_real else '· Simulación' }}</div>
           <div class="cuerpo">{{ plantilla.texto }}</div>
           <div class="hora">{{ ahora_texto }}</div>
         </div>
         <div class="nota-fina mt-12">
+          {% if envio_real %}
+          Vista de referencia. El envío real sale por Twilio al confirmar.
+          {% else %}
           Vista de referencia. WhatsApp y SMS no están conectados.
+          {% endif %}
         </div>
       </div>
     </section>

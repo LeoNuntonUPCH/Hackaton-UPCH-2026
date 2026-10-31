@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from threading import RLock
 
-from . import datos
+from . import datos, mensajeria
 from .datos import (
     AHORA,
     Alerta,
@@ -167,22 +167,68 @@ class Estado:
             return a
 
     def registrar_comunicacion(
-        self, quebrada: str, destinatarios: int, canales: list[str]
+        self,
+        quebrada: str,
+        destinatarios: int,
+        canales: list[str],
+        texto: str | None = None,
     ) -> list[Comunicacion]:
+        """Registra una comunicación por cada canal elegido.
+
+        Si Twilio está configurado (archivo .env con credenciales) y hay
+        destinatarios de prueba reales definidos, intenta el envío de
+        verdad y guarda el resultado tal cual lo devuelve Twilio. En
+        cualquier otro caso —que es la condición por defecto— se comporta
+        exactamente como antes: un registro ficticio, sin enviar nada.
+        """
         with self._lock:
+            reales = mensajeria.destinatarios_prueba()
+            puede_enviar_real = mensajeria.credenciales_disponibles() and reales
+
             nuevas = []
             for canal in canales:
+                if puede_enviar_real and texto:
+                    resultado, entrega = self._enviar_real(canal, reales, texto)
+                else:
+                    resultado, entrega = "pendiente", "No disponible"
+
                 c = Comunicacion(
                     momento=self.ahora,
                     quebrada=quebrada,
                     destinatarios=destinatarios,
                     canal=canal,
-                    resultado="pendiente",
-                    entrega_real="No disponible",
+                    resultado=resultado,
+                    entrega_real=entrega,
                 )
                 self.comunicaciones.insert(0, c)
                 nuevas.append(c)
             return nuevas
+
+    @staticmethod
+    def _enviar_real(canal: str, destinatarios: list[str], texto: str) -> tuple[str, str]:
+        """Envía de verdad a cada destinatario de prueba. Devuelve el par
+        (resultado simulado-compatible, texto de entrega real) que espera
+        la interfaz existente, para no tener que tocar las plantillas.
+        """
+        exitos, fallos, detalles = 0, 0, []
+        for destino in destinatarios:
+            r = mensajeria.enviar(canal, destino, texto)
+            if r.exito:
+                exitos += 1
+                detalles.append(f"{destino}: enviado (sid {r.sid})")
+            else:
+                fallos += 1
+                detalles.append(f"{destino}: {r.error}")
+
+        if exitos and not fallos:
+            resultado = "enviado"
+        elif exitos and fallos:
+            resultado = "enviado"  # parcial: se ve en el detalle de entrega_real
+        else:
+            resultado = "fallido"
+
+        resumen = f"{exitos} de {len(destinatarios)} entregados · " + " | ".join(detalles)
+        return resultado, resumen
 
     def actualizar_umbrales(
         self, nuevos: Umbrales, responsable: str

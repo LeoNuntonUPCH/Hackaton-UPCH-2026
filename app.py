@@ -156,6 +156,7 @@ async def confirmar_envio(request: Request) -> RedirectResponse:
         {
             "quebrada": formulario.get("quebrada", "huaycoloro"),
             "canales": formulario.getlist("canales") or ["SMS"],
+            "plantilla": formulario.get("plantilla", "preventivo"),
         },
     )
     return RedirectResponse(destino, status_code=303)

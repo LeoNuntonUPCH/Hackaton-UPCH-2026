@@ -41,13 +41,22 @@
     </div>
 
     <div class="flex gap-8 mb-16" style="flex-wrap:wrap">
-      {% for c in ['WhatsApp', 'SMS'] %}
-      <span class="pildora {{ 'p-azul' if c in canales_sel else 'p-contorno' }}">
-        {{ ico('chat' if c == 'WhatsApp' else 'sms', 11) }}
-        {{ c }} · {{ 'seleccionado · no conectado' if c in canales_sel else 'no seleccionado' }}
+      {% for canal in canales %}
+      {% set sel = canal.nombre in canales_sel %}
+      <span class="pildora {{ 'p-azul' if sel else 'p-contorno' }}">
+        {{ ico('chat' if canal.nombre == 'WhatsApp' else 'sms', 11) }}
+        {{ canal.nombre }} ·
+        {% if sel %}seleccionado · {{ canal.detalle }}{% else %}no seleccionado{% endif %}
       </span>
       {% endfor %}
     </div>
+    {% if envio_real %}
+    <div class="aviso aviso-exito mb-16">
+      {{ ico('check-circulo', 16) }}
+      <div><div class="titulo">Envío real realizado</div>
+      <div class="texto">Este mensaje se envió de verdad por Twilio a los destinatarios de prueba configurados.</div></div>
+    </div>
+    {% endif %}
 
     <div class="caja-mensaje mb-16" style="background:#F6F9FC">
       <div class="rotulo">Plantilla · {{ plantilla.nombre }}</div>

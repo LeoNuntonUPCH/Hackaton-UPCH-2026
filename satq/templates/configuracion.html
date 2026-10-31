@@ -219,7 +219,9 @@
         {% endfor %}
         <div class="flex gap-8" style="flex-wrap:wrap">
           {% for c in canales %}
-          <span class="pildora p-contorno">{{ ico('circulo', 11) }} {{ c.nombre }} · no conectado</span>
+          <span class="pildora {{ 'p-verde' if c.conectado else 'p-contorno' }}">
+            {{ ico('check-circulo' if c.conectado else 'circulo', 11) }} {{ c.nombre }} · {{ c.detalle }}
+          </span>
           {% endfor %}
         </div>
       </div>

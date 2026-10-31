@@ -8,9 +8,10 @@ de modo que la lógica de presentación se prueba sin levantar un servidor.
 
 from __future__ import annotations
 
+import urllib.parse
 from datetime import datetime
 
-from . import datos, graficos
+from . import datos, graficos, mensajeria
 from .datos import ESTADOS, PLANTILLAS, RESULTADOS
 from .estado import Estado
 from .motor import COLORES, ETIQUETAS, GLIFOS, NIVELES, Umbrales
@@ -305,7 +306,12 @@ def notificaciones(estado: Estado, params: dict) -> tuple[str, dict]:
             "plantilla_sel": plantilla,
             "plantilla": PLANTILLAS.get(plantilla, PLANTILLAS["preventivo"]),
             "canales_sel": canales,
-            "canales": datos.CANALES,
+            "canales": mensajeria.lista_canales(),
+            "envio_real": (
+                mensajeria.credenciales_disponibles()
+                and bool(mensajeria.destinatarios_prueba())
+            ),
+            "destinatarios_prueba": mensajeria.destinatarios_prueba(),
             "comunicaciones": estado.comunicaciones,
             "mensaje": params.get("mensaje"),
         }
@@ -329,6 +335,11 @@ def confirmacion(estado: Estado, params: dict) -> tuple[str, dict]:
             "plantilla": PLANTILLAS.get(plantilla, PLANTILLAS["preventivo"]),
             "plantilla_sel": plantilla,
             "canales_sel": canales,
+            "canales": mensajeria.lista_canales(),
+            "envio_real": (
+                mensajeria.credenciales_disponibles()
+                and bool(mensajeria.destinatarios_prueba())
+            ),
             "preparado": fecha_hora(estado.ahora),
         }
     )
@@ -380,7 +391,7 @@ def configuracion(estado: Estado, params: dict) -> tuple[str, dict]:
             "distritos": estado.distritos(),
             "filas_umbrales": estado.umbrales.como_lista(),
             "conectores": datos.CONECTORES,
-            "canales": datos.CANALES,
+            "canales": mensajeria.lista_canales(),
             "historial_parametros": estado.historial_parametros,
             "pestana": pestana,
             "mensaje": params.get("mensaje"),
@@ -395,11 +406,22 @@ def configuracion(estado: Estado, params: dict) -> tuple[str, dict]:
 # --- Acciones (POST) -------------------------------------------------------
 
 
+def _redir(ruta: str, **params) -> str:
+    """Arma una URL de redirección con el query string correctamente
+    codificado (espacios, tildes, «», todo). Centralizar esto evita el tipo
+    de bug donde un mensaje con espacios normales queda suelto en la URL en
+    vez de ir como '+' o '%20'.
+    """
+    cadena = urllib.parse.urlencode(params, quote_via=urllib.parse.quote_plus)
+    return f"{ruta}?{cadena}" if cadena else ruta
+
+
 def accion_validar(estado: Estado, params: dict) -> str:
     codigo = params.get("alerta", "")
     a = estado.validar_alerta(codigo, estado.usuario["nombre"])
     if a:
-        return f"/alertas?alerta={codigo}&mensaje=Alerta+{codigo}+validada+en+la+simulación"
+        return _redir("/alertas", alerta=codigo,
+                       mensaje=f"Alerta {codigo} validada en la simulación")
     return "/alertas"
 
 
@@ -408,9 +430,9 @@ def accion_estado_alerta(estado: Estado, params: dict) -> str:
     nuevo = params.get("nuevo_estado", "")
     estado.cambiar_estado_alerta(codigo, nuevo, estado.usuario["nombre"])
     etiqueta = ESTADOS.get(nuevo, nuevo)
-    return (
-        f"/alertas?alerta={codigo}&estado=todas"
-        f"&mensaje=Alerta+{codigo}+ahora+está+«{etiqueta}»+en+la+simulación"
+    return _redir(
+        "/alertas", alerta=codigo, estado="todas",
+        mensaje=f"Alerta {codigo} ahora está «{etiqueta}» en la simulación",
     )
 
 
@@ -419,14 +441,23 @@ def accion_confirmar_envio(estado: Estado, params: dict) -> str:
     canales = params.get("canales") or ["SMS"]
     if isinstance(canales, str):
         canales = [canales]
+    plantilla_clave = params.get("plantilla") or "preventivo"
+    texto = PLANTILLAS.get(plantilla_clave, PLANTILLAS["preventivo"])["texto"]
+
     q = estado.quebrada(codigo)
     destinatarios = q.destinatarios if q else 0
-    estado.registrar_comunicacion(codigo, destinatarios, canales)
-    return (
-        f"/notificaciones?quebrada={codigo}"
-        f"&mensaje=Registro+ficticio+creado+para+{len(canales)}+canal(es)."
-        "+No+se+envió+ningún+mensaje"
-    )
+    nuevas = estado.registrar_comunicacion(codigo, destinatarios, canales, texto)
+
+    if any(c.resultado in ("enviado", "fallido") for c in nuevas):
+        # Hubo un intento de envío real (Twilio configurado).
+        ok = sum(1 for c in nuevas if c.resultado == "enviado")
+        mensaje = f"Envío real intentado en {len(nuevas)} canal(es) · {ok} con entrega"
+    else:
+        mensaje = (
+            f"Registro ficticio creado para {len(canales)} canal(es). "
+            "No se envió ningún mensaje"
+        )
+    return _redir("/notificaciones", quebrada=codigo, mensaje=mensaje)
 
 
 def accion_umbrales(estado: Estado, params: dict) -> tuple[str, list[str]]:
@@ -449,21 +480,21 @@ def accion_umbrales(estado: Estado, params: dict) -> tuple[str, list[str]]:
     cambiadas = estado.recalcular_alertas()
     texto = "Umbrales guardados en la simulación"
     if cambiadas:
-        texto += f".+{cambiadas}+alerta(s)+cambiaron+de+nivel+al+recalcular"
-    return f"/configuracion?mensaje={texto.replace(' ', '+')}", []
+        texto += f". {cambiadas} alerta(s) cambiaron de nivel al recalcular"
+    return _redir("/configuracion", mensaje=texto), []
 
 
 def accion_nueva_quebrada(estado: Estado, params: dict) -> str:
     nombre = (params.get("nombre") or "").strip()
     if not nombre:
-        return "/configuracion?mensaje=Indica+un+nombre+para+la+quebrada"
+        return _redir("/configuracion", mensaje="Indica un nombre para la quebrada")
     q = estado.nueva_quebrada(
         nombre,
         (params.get("distrito") or "Sin distrito").strip(),
         (params.get("provincia") or "Sin provincia").strip(),
         (params.get("departamento") or "Lima").strip(),
     )
-    return (
-        f"/configuracion?quebrada={q.codigo}"
-        f"&mensaje=Quebrada+«{q.nombre}»+registrada+sin+lecturas+asociadas"
+    return _redir(
+        "/configuracion", quebrada=q.codigo,
+        mensaje=f"Quebrada «{q.nombre}» registrada sin lecturas asociadas",
     )

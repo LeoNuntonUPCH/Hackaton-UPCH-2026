@@ -15,17 +15,26 @@ Hackathon Interdisciplinaria FACI 2026 · UPCH · Reto 4 (Clima, agua y gestión
 
 Doble clic en **`iniciar.bat`**. Luego abre <http://127.0.0.1:8000> en el navegador.
 
-El script detecta si FastAPI está instalado y, si no lo está, arranca el servidor
-de respaldo automáticamente.
+El script comprueba que la aplicación FastAPI carga de verdad y, si algo falla,
+arranca el servidor de respaldo en lugar de detenerse.
+
+### Si algo no arranca
+
+```bash
+python diagnostico.py
+```
+
+Revisa el intérprete, los archivos, las dependencias y la carga de la aplicación,
+y dice en una línea qué falta. No necesita ninguna dependencia para funcionar.
 
 ### Desde la terminal
 
 ```bash
-# Versión completa: FastAPI + API documentada
+# Versión completa (recomendada): FastAPI + API documentada
 pip install -r requirements.txt
 python -m uvicorn app:app --port 8000
 
-# Versión de respaldo: solo librería estándar + Jinja2
+# Versión de respaldo: solo librería estándar + Jinja2 (incluido en Anaconda)
 python servidor_demo.py
 ```
 
@@ -41,6 +50,7 @@ satq-digital/
 ├── app.py                 Aplicación FastAPI: rutas + API JSON documentada
 ├── servidor_demo.py       Servidor de respaldo, sin dependencias externas
 ├── pruebas_flujo.py       Pruebas de los flujos interactivos
+├── diagnostico.py         Qué revisar si el servidor no levanta
 ├── requirements.txt
 ├── iniciar.bat
 └── satq/
@@ -101,6 +111,30 @@ GET /api/evaluar?acumulado_mm=42
 
 ---
 
+## Guion sugerido para la demostración (5 minutos)
+
+1. **`/dashboard`** — 24 zonas monitoreadas, 6 alertas activas, 8 localidades en
+   riesgo. La curva de Huaycoloro sube de 3,4 a 42 mm/6 h y cruza la línea roja
+   del umbral.
+2. **`/quebrada/huaycoloro`** — la evidencia: 42 mm/6 h contra un umbral de 40.
+   Superación observada de +2 mm. El texto dice explícitamente que describe un
+   registro, no una predicción.
+3. **`/alertas`** — selecciona la alerta crítica y pulsa *Validar simulación*.
+   Pasa de «Pendiente de revisión» a «Validada»: la detección automática no
+   equivale a un aviso validado por una autoridad.
+4. **`/notificaciones`** → *Simular envío* → *Confirmar simulación*. Se crea un
+   registro ficticio; los canales aparecen como «no conectado» en todo momento.
+5. **`/configuracion`** — **el momento clave**: cambia el umbral crítico de 40 a
+   50 mm y guarda. Huaycoloro baja de Crítico a Alto y el cambio queda en el
+   historial de parámetros. Demuestra que el nivel lo calcula el motor, no una
+   tabla fija.
+6. **`/docs`** — la API documentada, si arrancaste con FastAPI.
+
+Para volver al punto inicial entre demostraciones: reinicia el servidor, o
+`POST /api/reiniciar`.
+
+---
+
 ## Qué está implementado y qué no
 
 La propuesta describe una arquitectura completa. Este prototipo implementa una
@@ -114,8 +148,14 @@ propia interfaz (`/configuracion` → pestaña *Fuentes y conexiones*).
 | Panel web | Streamlit o React | HTML/CSS servido por FastAPI |
 | Base de datos | PostgreSQL | Estado en memoria |
 | Automatización | n8n | No implementada |
-| Mensajería | API WhatsApp / SMS | Simulada, sin envío |
+| Mensajería | API WhatsApp / SMS | **Implementada (Twilio), apagada por defecto** |
 | Fuentes de datos | SENAMHI · INAIGEM | No conectadas; series sintéticas |
+
+La mensajería real está lista pero apagada: si no existe un archivo `.env`
+con credenciales de Twilio, el sistema simula exactamente como antes. Ver
+**[GUIA_TWILIO.md](GUIA_TWILIO.md)** para activarla y enviar de verdad por
+WhatsApp y SMS, sin instalar ningún paquete nuevo (habla la API de Twilio
+directo por HTTP).
 
 ---
 
@@ -145,6 +185,17 @@ python pruebas_flujo.py
 Comprueba los ocho flujos: validar una alerta, cambiar su estado, registrar un
 envío simulado, guardar umbrales, el recálculo de niveles, el rechazo de
 umbrales inválidos y el alta de una quebrada.
+
+## Notas de compatibilidad
+
+Probado con Python 3.10 y 3.13. El prototipo no usa `python-multipart`: los
+formularios son urlencoded y Starlette los procesa sin esa librería, de modo
+que una instalación incompleta de dependencias no impide que `app.py` cargue.
+
+Si conviven varias instalaciones de Python (por ejemplo Anaconda y la de
+python.org), conviene arrancar siempre desde la misma terminal en la que se
+instalaron las dependencias. `python diagnostico.py` muestra qué intérprete se
+está usando.
 
 ---
 
