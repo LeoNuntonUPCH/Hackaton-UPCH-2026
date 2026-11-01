@@ -10,7 +10,7 @@
   <div class="acciones">
     {% if envio_real %}
     <span class="marcador-estado" style="color:var(--verde-700)">
-      {{ ico('check-circulo', 13) }} Twilio conectado · envía de verdad a {{ destinatarios_prueba | length }} número(s) de prueba
+      {{ ico('check-circulo', 13) }} Envío real activo · {{ canales_listos | join(', ') }}
     </span>
     {% else %}
     <span class="marcador-estado">{{ ico('circulo', 13) }} Solo simulación · sin envío real</span>
@@ -111,7 +111,7 @@
         <div class="flex entre centro-v">
           {% if envio_real %}
           <span class="nota-fina" style="color:var(--verde-700)">
-            Se enviará de verdad a: {{ destinatarios_prueba | join(', ') }}
+            Se enviará de verdad por: {{ canales_listos | join(', ') }}
           </span>
           <button class="btn btn-primario" type="submit">{{ ico('enviar', 16) }} Enviar de verdad</button>
           {% else %}

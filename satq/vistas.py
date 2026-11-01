@@ -286,12 +286,29 @@ def alertas(estado: Estado, params: dict) -> tuple[str, dict]:
     return "alertas.html", ctx
 
 
+def _canales_por_defecto() -> list[str]:
+    """Qué canales vienen marcados al abrir la pantalla.
+
+    Si hay algún canal realmente conectado se marcan esos, para que la
+    demostración envíe de verdad sin depender de que el operador recuerde
+    tildar una casilla. Si no hay ninguno, se vuelve al par histórico
+    WhatsApp/SMS, que simula.
+    """
+    listos = mensajeria.canales_listos()
+    return listos if listos else ["WhatsApp", "SMS"]
+
+
+def _canales_pedidos(params: dict) -> list[str]:
+    canales = params.get("canales") or _canales_por_defecto()
+    if isinstance(canales, str):
+        canales = [canales]
+    return canales
+
+
 def notificaciones(estado: Estado, params: dict) -> tuple[str, dict]:
     codigo = params.get("quebrada") or "huaycoloro"
     plantilla = params.get("plantilla") or "preventivo"
-    canales = params.get("canales") or ["WhatsApp", "SMS"]
-    if isinstance(canales, str):
-        canales = [canales]
+    canales = _canales_pedidos(params)
 
     q = estado.quebrada(codigo) or estado.quebrada("huaycoloro")
     ctx = _base(estado, "notificaciones")
@@ -307,11 +324,8 @@ def notificaciones(estado: Estado, params: dict) -> tuple[str, dict]:
             "plantilla": PLANTILLAS.get(plantilla, PLANTILLAS["preventivo"]),
             "canales_sel": canales,
             "canales": mensajeria.lista_canales(),
-            "envio_real": (
-                mensajeria.credenciales_disponibles()
-                and bool(mensajeria.destinatarios_prueba())
-            ),
-            "destinatarios_prueba": mensajeria.destinatarios_prueba(),
+            "envio_real": mensajeria.hay_envio_real(),
+            "canales_listos": mensajeria.canales_listos(),
             "comunicaciones": estado.comunicaciones,
             "mensaje": params.get("mensaje"),
         }
@@ -322,9 +336,13 @@ def notificaciones(estado: Estado, params: dict) -> tuple[str, dict]:
 def confirmacion(estado: Estado, params: dict) -> tuple[str, dict]:
     codigo = params.get("quebrada") or "huaycoloro"
     plantilla = params.get("plantilla") or "preventivo"
-    canales = params.get("canales") or ["WhatsApp", "SMS"]
-    if isinstance(canales, str):
-        canales = [canales]
+    canales = _canales_pedidos(params)
+
+    # Lo que importa en esta pantalla no es si hay algún canal conectado,
+    # sino si alguno de los que el operador eligió lo está: de eso depende
+    # que el botón prometa un envío real o una simulación.
+    listos = set(mensajeria.canales_listos())
+    canales_reales = [c for c in canales if c in listos]
 
     q = estado.quebrada(codigo) or estado.quebrada("huaycoloro")
     ctx = _base(estado, "notificaciones")
@@ -336,10 +354,8 @@ def confirmacion(estado: Estado, params: dict) -> tuple[str, dict]:
             "plantilla_sel": plantilla,
             "canales_sel": canales,
             "canales": mensajeria.lista_canales(),
-            "envio_real": (
-                mensajeria.credenciales_disponibles()
-                and bool(mensajeria.destinatarios_prueba())
-            ),
+            "envio_real": bool(canales_reales),
+            "canales_reales": canales_reales,
             "preparado": fecha_hora(estado.ahora),
         }
     )

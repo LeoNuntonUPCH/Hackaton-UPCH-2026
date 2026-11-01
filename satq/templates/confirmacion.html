@@ -63,6 +63,19 @@
       <div class="texto">{{ plantilla.texto }}</div>
     </div>
 
+    {% if envio_real %}
+    <div class="aviso aviso-error">
+      {{ ico('alerta', 16) }}
+      <div>
+        <div class="titulo">Se enviarán mensajes reales por {{ canales_reales | join(', ') }}</div>
+        <div class="texto">
+          Los destinatarios configurados recibirán este texto en su dispositivo.
+          El texto es una plantilla que requiere validación local: no hay
+          información verificada de zonas seguras.
+        </div>
+      </div>
+    </div>
+    {% else %}
     <div class="aviso aviso-info">
       {{ ico('info', 16) }}
       <div>
@@ -73,6 +86,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
 
     <div class="nota-fina mt-12">
       Responsable: {{ usuario.nombre }} · {{ usuario.rol }}. Resumen preparado el {{ preparado }}.
@@ -84,7 +98,11 @@
       {% for c in canales_sel %}<input type="hidden" name="canales" value="{{ c }}">{% endfor %}
       <div class="acciones">
         <a class="btn" href="/notificaciones?quebrada={{ quebrada_sel.codigo }}">Cancelar</a>
+        {% if envio_real %}
+        <button class="btn btn-primario" type="submit">{{ ico('check', 16) }} Confirmar envío real</button>
+        {% else %}
         <button class="btn btn-primario" type="submit">{{ ico('check', 16) }} Confirmar simulación</button>
+        {% endif %}
       </div>
     </form>
   </section>

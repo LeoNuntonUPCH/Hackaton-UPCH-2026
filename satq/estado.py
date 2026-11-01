@@ -182,12 +182,14 @@ class Estado:
         exactamente como antes: un registro ficticio, sin enviar nada.
         """
         with self._lock:
-            reales = mensajeria.destinatarios_prueba()
-            puede_enviar_real = mensajeria.credenciales_disponibles() and reales
+            hay_proveedor = mensajeria.credenciales_disponibles()
 
             nuevas = []
             for canal in canales:
-                if puede_enviar_real and texto:
+                # Cada canal tiene sus propios destinatarios: teléfono para
+                # WhatsApp y SMS, chat_id para Telegram.
+                reales = mensajeria.destinatarios_de(canal)
+                if hay_proveedor and reales and texto:
                     resultado, entrega = self._enviar_real(canal, reales, texto)
                 else:
                     resultado, entrega = "pendiente", "No disponible"
