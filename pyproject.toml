@@ -1,0 +1,22 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+pythonpath = ["."]
+markers = [
+    "postgres: pruebas que requieren PostgreSQL (SATQ_DB=postgres y SATQ_DSN)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["app.py.respaldo", "__pycache__", ".git"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+files = ["satq", "app.py"]
+exclude = ["app\\.py\\.respaldo"]
+warn_unused_ignores = true

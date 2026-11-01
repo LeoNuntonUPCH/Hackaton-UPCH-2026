@@ -14,13 +14,14 @@ La versión completa, con la API documentada en /docs, es `app.py`.
 
 from __future__ import annotations
 
+import json
 import mimetypes
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from satq import vistas
+from satq import observabilidad, vistas
 from satq.estado import ESTADO
 from satq.plantillas import DIR_ESTATICOS, render
 
@@ -101,6 +102,16 @@ class Manejador(BaseHTTPRequestHandler):
             self._estatico(partes.path)
             return
 
+        if ruta == "/health":
+            salud = observabilidad.estado_salud()
+            codigo = 200 if salud["estado"] == "ok" else 503
+            self._responder(
+                json.dumps(salud, ensure_ascii=False),
+                codigo,
+                "application/json; charset=utf-8",
+            )
+            return
+
         if ruta == "/":
             self._redirigir("/login")
             return
@@ -156,6 +167,7 @@ class Manejador(BaseHTTPRequestHandler):
 
 
 def main(puerto: int = PUERTO) -> None:
+    observabilidad.configurar_logs()
     servidor = ThreadingHTTPServer(("127.0.0.1", puerto), Manejador)
     print("SATQ Digital · servidor de demostración (sin FastAPI)")
     print(f"  Abre http://127.0.0.1:{puerto} en tu navegador")

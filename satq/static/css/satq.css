@@ -306,6 +306,8 @@ input:focus, select:focus, textarea:focus {
 .aviso .texto { color: var(--muted); }
 .aviso-info { background: #F2F7FC; }
 .aviso-azul { background: var(--blue-50); }
+.aviso-ambar { background: #FDF6E3; border: 1px solid #F3E2B8; }
+.aviso-ambar svg { color: var(--ambar); }
 .aviso-exito { background: var(--verde-50); }
 .aviso-error { background: var(--rojo-50); }
 .aviso svg { flex: 0 0 16px; margin-top: 1px; color: var(--blue); }

@@ -70,7 +70,18 @@
     <div class="caja">
       <span class="pildora p-azul">{{ ico('circulo', 11) }} Entorno de demostración</span>
       <h2>Bienvenido a SATQ Digital</h2>
-      <div class="bajada">Ingresa con tu cuenta de trabajo para consultar y gestionar información territorial.</div>
+      <div class="bajada">Elige un perfil para recorrer la demostración. No hay autenticación real ni datos personales.</div>
+
+      <div class="aviso aviso-ambar mt-12">
+        {{ ico('alerta', 16) }}
+        <div>
+          <div class="titulo">Acceso de demostración</div>
+          <div class="texto">
+            Este formulario <strong>no autentica</strong> ni protege información: solo
+            selecciona el perfil de la demo. No escribas credenciales reales.
+          </div>
+        </div>
+      </div>
 
       {% if error %}
       <div class="aviso aviso-error mb-16">{{ ico('alerta', 16) }}<div class="texto" style="color:var(--ink)">{{ error }}</div></div>

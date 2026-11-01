@@ -17,12 +17,21 @@ Documentación automática de la API: http://127.0.0.1:8000/docs
 
 from __future__ import annotations
 
-from fastapi import FastAPI, Query, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+import math
+import os
+import time
+
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from satq import vistas
-from satq.estado import ESTADO
+from satq import observabilidad, vistas
+from satq.estado import (
+    ESTADO,
+    AlertaNoRequerida,
+    ConflictoAlerta,
+    ConflictoIngesta,
+)
 from satq.motor import ETIQUETAS, clasificar
 from satq.plantillas import DIR_ESTATICOS, render
 
@@ -38,6 +47,40 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory=str(DIR_ESTATICOS)), name="static")
 
+observabilidad.configurar_logs()
+
+
+@app.middleware("http")
+async def _medir_peticiones(request: Request, call_next) -> Response:
+    inicio = time.perf_counter()
+    try:
+        respuesta = await call_next(request)
+    except Exception:
+        duracion = (time.perf_counter() - inicio) * 1000
+        observabilidad.registrar_peticion(
+            request.method, request.url.path, 500, duracion
+        )
+        raise
+    duracion = (time.perf_counter() - inicio) * 1000
+    observabilidad.registrar_peticion(
+        request.method, request.url.path, respuesta.status_code, duracion
+    )
+    return respuesta
+
+
+@app.get("/health", tags=["Observabilidad"])
+def salud() -> JSONResponse:
+    """Semáforo de salud del servicio y del almacenamiento."""
+    datos = observabilidad.estado_salud()
+    codigo = 200 if datos["estado"] == "ok" else 503
+    return JSONResponse(status_code=codigo, content=datos)
+
+
+@app.get("/api/metricas", tags=["Observabilidad"])
+def metricas() -> dict:
+    """Contadores acumulados de peticiones, errores y tiempos."""
+    return observabilidad.resumen_metricas()
+
 
 def _html(resultado: tuple[str, dict]) -> HTMLResponse:
     plantilla, contexto = resultado
@@ -51,6 +94,17 @@ def _params(request: Request) -> dict:
     if multiples:
         datos["canales"] = multiples
     return datos
+
+
+def _verificar_clave_n8n(x_api_key: str | None) -> None:
+    clave_configurada = os.getenv("SATQ_INGESTA_API_KEY")
+    if not clave_configurada:
+        raise HTTPException(
+            status_code=503,
+            detail="La automatización no está configurada en este servidor.",
+        )
+    if x_api_key != clave_configurada:
+        raise HTTPException(status_code=401, detail="API key inválida.")
 
 
 # --- Pantallas -------------------------------------------------------------
@@ -293,6 +347,153 @@ def api_evaluar(
             "critico": ESTADO.umbrales.critico,
         },
     }
+
+
+@app.post("/api/ingesta", tags=["API"])
+async def api_ingesta(
+    request: Request,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> dict:
+    """Recibe lecturas de lluvia desde n8n y devuelve la evaluación.
+
+    No crea alertas: informa si el nivel exige una. La clave de idempotencia
+    evita duplicar lecturas cuando el flujo se reintenta.
+    """
+    _verificar_clave_n8n(x_api_key)
+
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail="El cuerpo debe ser JSON válido."
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=400, detail="El cuerpo debe ser un objeto JSON."
+        )
+
+    quebrada = payload.get("quebrada")
+    fuente = payload.get("fuente", "n8n")
+    idempotency_key = payload.get("idempotency_key")
+    lecturas_raw = payload.get("lecturas")
+
+    if not isinstance(quebrada, str) or not quebrada.strip():
+        raise HTTPException(status_code=400, detail="quebrada es obligatorio.")
+    if not isinstance(fuente, str) or not fuente.strip():
+        raise HTTPException(status_code=400, detail="fuente no puede estar vacío.")
+    if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+        raise HTTPException(
+            status_code=400, detail="idempotency_key es obligatorio."
+        )
+    if not isinstance(lecturas_raw, list) or not lecturas_raw:
+        raise HTTPException(
+            status_code=400, detail="lecturas debe ser una lista no vacía."
+        )
+    if len(lecturas_raw) > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="No se permiten más de 100 lecturas por envío.",
+        )
+
+    lecturas: list[float] = []
+    for item in lecturas_raw:
+        if not isinstance(item, dict) or "mm_h" not in item:
+            raise HTTPException(
+                status_code=400,
+                detail="Cada lectura debe incluir mm_h.",
+            )
+        valor = item["mm_h"]
+        if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+            raise HTTPException(
+                status_code=400,
+                detail="Cada mm_h debe ser numérico.",
+            )
+        valor = float(valor)
+        if not math.isfinite(valor) or valor < 0 or valor > 500:
+            raise HTTPException(
+                status_code=400,
+                detail="Cada mm_h debe estar entre 0 y 500.",
+            )
+        lecturas.append(valor)
+
+    try:
+        return ESTADO.ingerir_lecturas(
+            quebrada.strip(),
+            lecturas,
+            fuente.strip(),
+            idempotency_key.strip(),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail="Quebrada no encontrada."
+        ) from exc
+    except ConflictoIngesta as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/alertas", tags=["API"])
+async def api_crear_alerta(
+    request: Request,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> JSONResponse:
+    """Crea una alerta si el nivel actual es alto o crítico.
+
+    No crea otra alerta activa para la misma quebrada. La clave de idempotencia
+    evita duplicarla cuando n8n reintenta el flujo.
+    """
+    _verificar_clave_n8n(x_api_key)
+
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail="El cuerpo debe ser JSON válido."
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=400, detail="El cuerpo debe ser un objeto JSON."
+        )
+
+    quebrada = payload.get("quebrada")
+    fuente = payload.get("fuente", "n8n")
+    idempotency_key = payload.get("idempotency_key")
+
+    if not isinstance(quebrada, str) or not quebrada.strip():
+        raise HTTPException(status_code=400, detail="quebrada es obligatorio.")
+    if not isinstance(fuente, str) or not fuente.strip():
+        raise HTTPException(status_code=400, detail="fuente no puede estar vacío.")
+    if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+        raise HTTPException(
+            status_code=400, detail="idempotency_key es obligatorio."
+        )
+
+    try:
+        resultado = ESTADO.crear_alerta_si_corresponde(
+            quebrada.strip(),
+            fuente.strip(),
+            idempotency_key.strip(),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail="Quebrada no encontrada."
+        ) from exc
+    except ConflictoAlerta as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except AlertaNoRequerida as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    estado_http = (
+        201
+        if resultado.get("creada") and not resultado.get("duplicado")
+        else 200
+    )
+    return JSONResponse(status_code=estado_http, content=resultado)
 
 
 @app.post("/api/reiniciar", tags=["API"])

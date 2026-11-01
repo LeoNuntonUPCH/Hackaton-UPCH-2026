@@ -38,20 +38,35 @@ añade la API JSON documentada en <http://127.0.0.1:8000/docs>.
 
 ```
 satq-digital/
-├── app.py                 Aplicación FastAPI: rutas + API JSON documentada
-├── servidor_demo.py       Servidor de respaldo, sin dependencias externas
-├── pruebas_flujo.py       Pruebas de los flujos interactivos
-├── requirements.txt
+├── app.py                      Aplicación FastAPI: pantallas + API JSON
+├── servidor_demo.py            Servidor de respaldo, sin dependencias externas
 ├── iniciar.bat
+├── diagnostico.py              Diagnóstico de arranque
+├── pruebas_flujo.py            Pruebas de los flujos interactivos
+├── pruebas_ingesta.py          Pruebas de POST /api/ingesta (unittest)
+├── pruebas_alertas.py          Pruebas de POST /api/alertas (unittest)
+├── requirements.txt
+├── requirements-postgres.txt   Solo si usas PostgreSQL (psycopg)
+├── requirements-dev.txt        Solo para desarrollo (pytest, ruff, mypy)
+├── pyproject.toml              Configuración de pytest, ruff y mypy
+├── tests/                      Pruebas con pytest
+├── n8n/                        Workflow de ingesta demo + guía
+├── docs/                       Observabilidad
+├── .github/workflows/ci.yml    Integración continua
 └── satq/
-    ├── motor.py           Motor de clasificación de riesgo  ← el corazón
-    ├── datos.py           Escenario simulado (24 quebradas, 7 alertas)
-    ├── estado.py          Estado en memoria (hace de PostgreSQL)
-    ├── graficos.py        Gráfico y mapa en SVG, generados en el servidor
-    ├── vistas.py          Qué datos ve cada pantalla
-    ├── plantillas.py      Entorno Jinja2
-    ├── templates/         10 plantillas HTML
-    └── static/css/        Una hoja de estilos
+    ├── motor.py                Motor de clasificación de riesgo  ← el corazón
+    ├── datos.py                Escenario simulado (24 quebradas, 7 alertas)
+    ├── estado.py               Fachada del estado; delega en un repositorio
+    ├── repositorio.py          Interfaz de almacenamiento
+    ├── repositorio_memoria.py  Backend por defecto (se reinicia)
+    ├── almacen_postgres.py     Backend opcional PostgreSQL
+    ├── migraciones/            Esquema SQL (001_inicial.sql)
+    ├── observabilidad.py       Logs, métricas y estado de salud
+    ├── graficos.py             Gráfico y mapa en SVG, generados en el servidor
+    ├── vistas.py               Qué datos ve cada pantalla
+    ├── plantillas.py           Entorno Jinja2
+    ├── templates/              10 plantillas HTML
+    └── static/css/             Una hoja de estilos
 ```
 
 No hay dependencias de CDN ni de internet: los gráficos y el mapa se generan
@@ -74,6 +89,22 @@ como SVG en el servidor. El prototipo funciona sin conexión.
 
 Dos pantallas adicionales que no estaban en el diseño: `/quebradas`
 (listado completo) y `/reportes` (agregados del escenario).
+
+---
+
+## Acceso y seguridad
+
+El login es **de demostración**: no autentica, no gestiona sesiones y no protege
+datos. Solo elige el perfil (`Autoridad` o `Personal técnico`) para recorrer la
+interfaz, y la pantalla lo advierte de forma visible. No escribas credenciales
+reales.
+
+La única protección real está en la **API de ingesta**: `POST /api/ingesta` y
+`POST /api/alertas` exigen el header `X-API-Key` y la variable de entorno
+`SATQ_INGESTA_API_KEY`. Si la variable no está configurada, responden `503`; si
+la clave no coincide, `401`.
+
+No hay envío real de mensajes ni integraciones oficiales conectadas.
 
 ---
 
@@ -111,11 +142,45 @@ propia interfaz (`/configuracion` → pestaña *Fuentes y conexiones*).
 |---|---|---|
 | Backend | Python · FastAPI | **Implementado** |
 | Motor de umbrales | Reglas configurables | **Implementado** |
-| Panel web | Streamlit o React | HTML/CSS servido por FastAPI |
-| Base de datos | PostgreSQL | Estado en memoria |
-| Automatización | n8n | No implementada |
+| Panel web | Streamlit o React | HTML/CSS + Jinja2 servido por FastAPI |
+| Base de datos | PostgreSQL | Opcional: PostgreSQL o memoria (por defecto) |
+| Automatización | n8n | Demo: workflow de ingesta en `n8n/` |
 | Mensajería | API WhatsApp / SMS | Simulada, sin envío |
 | Fuentes de datos | SENAMHI · INAIGEM | No conectadas; series sintéticas |
+
+La diferencia entre "implementado", "demo" y "simulado" importa: la persistencia
+en PostgreSQL funciona, pero es opcional; el workflow de n8n existe, pero no se
+conecta a fuentes oficiales; y la mensajería prepara el mensaje y registra el
+envío, pero ningún destinatario recibe nada.
+
+---
+
+## Persistencia (opcional)
+
+Por defecto el prototipo usa **memoria**: al reiniciar el servidor vuelve al
+escenario inicial. Eso es justo lo que se quiere para una demostración repetible.
+
+Si defines `SATQ_DB=postgres`, el estado se guarda en PostgreSQL y **sobrevive a
+los reinicios**. La primera vez la base se siembra sola y `POST /api/reiniciar`
+la devuelve al escenario inicial.
+
+1. Crea una base `satq` en PostgreSQL.
+2. Aplica el esquema (o deja que la app lo cree al arrancar):
+   `satq/migraciones/001_inicial.sql`
+3. Instala el driver opcional:
+   ```powershell
+   pip install -r requirements-postgres.txt
+   ```
+4. Arranca con:
+   ```powershell
+   $env:SATQ_DB="postgres"
+   $env:SATQ_DSN="postgresql://postgres:TUCLAVE@localhost:5432/satq"
+   python -m uvicorn app:app --port 8000
+   ```
+
+`SATQ_DSN` contiene la contraseña: **no lo guardes en el repositorio**. Si no
+defines `SATQ_DB`, todo funciona en memoria y sin PostgreSQL. El servidor de
+respaldo siempre usa memoria.
 
 ---
 
@@ -146,6 +211,35 @@ Comprueba los ocho flujos: validar una alerta, cambiar su estado, registrar un
 envío simulado, guardar umbrales, el recálculo de niveles, el rechazo de
 umbrales inválidos y el alta de una quebrada.
 
+Además, el repositorio incluye pruebas automatizadas del motor, del estado y del
+repositorio, y de los endpoints de ingesta:
+
+```bash
+# Dependencias de desarrollo (no hacen falta para la demo)
+pip install -r requirements-dev.txt
+
+# Motor, estado y repositorio
+python -m pytest -q
+
+# Calidad de código
+python -m ruff check .
+python -m mypy
+
+# Endpoints de ingesta y creación de alertas
+python -m unittest pruebas_ingesta pruebas_alertas -v
+```
+
+En total son **51 pruebas con pytest**, **17 con unittest** y **8 flujos** de
+interfaz. La carpeta `tests/` cubre los límites del motor, `sin_datos`, la
+ventana móvil, las transiciones de alertas, el recálculo de umbrales, la
+idempotencia de la ingesta y el contrato del repositorio.
+
+### Integración continua
+
+El workflow `.github/workflows/ci.yml` se ejecuta en cada push y Pull Request y
+corre `pytest`, `ruff`, `mypy`, las pruebas `unittest` de la API y
+`diagnostico.py`. No necesita servidor ni base de datos.
+
 ---
 
 ## API JSON (solo con `app.py`)
@@ -157,6 +251,81 @@ umbrales inválidos y el alta de una quebrada.
 | `GET /api/quebradas/{codigo}` | Serie de acumulado y evaluación |
 | `GET /api/alertas` | Alertas del escenario |
 | `GET /api/evaluar?acumulado_mm=42` | Aplica el motor a un valor cualquiera |
+| `POST /api/ingesta` | Recibe lecturas desde n8n y devuelve la evaluación |
+| `POST /api/alertas` | Crea una alerta si el nivel es alto o crítico |
 | `POST /api/reiniciar` | Devuelve el escenario a su punto inicial |
+| `GET /health` | Estado de salud del servicio y de la base de datos |
+| `GET /api/metricas` | Peticiones, errores y tiempos acumulados |
 
 Documentación interactiva en `/docs`.
+
+### Ingesta desde n8n
+
+El endpoint `POST /api/ingesta` requiere la variable `SATQ_INGESTA_API_KEY` y el
+header `X-API-Key`. Si la variable no está configurada, responde `503`; si la
+clave no coincide, `401`.
+
+```powershell
+$env:SATQ_INGESTA_API_KEY="satq-demo-local"
+python -m uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+Ejemplo de cuerpo:
+
+```json
+{
+  "quebrada": "huaycoloro",
+  "fuente": "n8n-demo",
+  "idempotency_key": "demo-2026-10-29-01",
+  "lecturas": [
+    {"mm_h": 12.5},
+    {"mm_h": 14.0}
+  ]
+}
+```
+
+La respuesta incluye `nivel`, `acumulado_mm` y `alerta_requerida`. No crea
+alertas: solo informa si el nivel es `alto` o `critico`. Si se repite la misma
+`idempotency_key` con el mismo cuerpo, responde `duplicado: true` y no agrega
+lecturas; si el cuerpo cambia, responde `409`.
+
+Desde n8n ejecutándose en Windows, la URL es `http://127.0.0.1:8000/api/ingesta`.
+Si n8n corre en Docker, usa `http://host.docker.internal:8000/api/ingesta`.
+
+Hay un workflow listo para importar en `n8n/SATQ - Ingesta manual.json`
+(instrucciones en `n8n/README.md`). Envía lecturas simuladas y, si el nivel es
+alto o crítico, crea la alerta mediante `POST /api/alertas`.
+
+### Creación de alertas desde n8n
+
+Después de una ingesta con `alerta_requerida: true`, n8n puede llamar a
+`POST /api/alertas` con la misma clave `X-API-Key`:
+
+```json
+{
+  "quebrada": "quirio",
+  "fuente": "n8n-demo",
+  "idempotency_key": "demo-2026-10-29-01-alerta"
+}
+```
+
+La respuesta `201` incluye la alerta creada, por ejemplo `AL-0008`. Si se repite
+la misma clave, responde `200` con `duplicado: true` y no crea otra. Si la
+quebrada ya tiene una alerta activa, responde `200` con `creada: false` y
+`motivo: "alerta_activa"`. Si el nivel no es alto ni crítico, responde `409`.
+
+### Observabilidad
+
+- `/health` (en ambos servidores) indica si el servicio está sano; en modo
+  PostgreSQL devuelve `503` si la base no responde.
+- `/api/metricas` (solo `app.py`) devuelve peticiones, errores y tiempos.
+- Los logs son una línea JSON por petición; el nivel se ajusta con
+  `SATQ_LOG_LEVEL`.
+- Detalle en `docs/observabilidad.md`.
+
+---
+
+## Documentación
+
+- `docs/observabilidad.md` — qué se registra y cómo consultarlo.
+- `n8n/README.md` — cómo importar y ejecutar el workflow de ingesta.

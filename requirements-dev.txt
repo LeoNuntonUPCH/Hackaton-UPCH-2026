@@ -1,0 +1,6 @@
+# Dependencias solo para desarrollo: tests, lint y typecheck.
+# No son necesarias para ejecutar la demo ni el servidor de respaldo offline.
+pytest>=8,<9
+ruff>=0.6
+mypy>=1.10
+httpx>=0.27
