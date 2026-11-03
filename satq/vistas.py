@@ -9,6 +9,9 @@ de modo que la lógica de presentación se prueba sin levantar un servidor.
 from __future__ import annotations
 
 from datetime import datetime
+from urllib.parse import quote_plus
+
+from mensajeria import modo_real, proveedor_configurado
 
 from . import datos, graficos
 from .datos import ESTADOS, PLANTILLAS, RESULTADOS
@@ -31,14 +34,23 @@ def hora(d: datetime) -> str:
     return d.strftime("%H:%M")
 
 
+def _mascarar_telefono(telefono: str) -> str:
+    if not telefono:
+        return ""
+    if len(telefono) <= 7:
+        return "****"
+    return f"{telefono[:3]}****{telefono[-4:]}"
+
+
 def _base(estado: Estado, seccion: str) -> dict:
     """Contexto que comparten todas las pantallas con barra lateral."""
     conteo = estado.conteo_estados()
+    ahora = datos.ahora_peru()
     return {
         "seccion": seccion,
         "usuario": estado.usuario,
-        "ahora": estado.ahora,
-        "ahora_texto": fecha_hora(estado.ahora),
+        "ahora": ahora,
+        "ahora_texto": fecha_hora(ahora),
         "alertas_activas": conteo["activas"],
         "umbrales": estado.umbrales,
         "etiquetas": ETIQUETAS,
@@ -308,6 +320,8 @@ def notificaciones(estado: Estado, params: dict) -> tuple[str, dict]:
             "canales": datos.CANALES,
             "comunicaciones": estado.comunicaciones,
             "mensaje": params.get("mensaje"),
+            "sms_modo": "real" if modo_real() else "simulado",
+            "sms_proveedor": proveedor_configurado() or "sin proveedor",
         }
     )
     return "notificaciones.html", ctx
@@ -330,6 +344,8 @@ def confirmacion(estado: Estado, params: dict) -> tuple[str, dict]:
             "plantilla_sel": plantilla,
             "canales_sel": canales,
             "preparado": fecha_hora(estado.ahora),
+            "sms_modo": "real" if modo_real() else "simulado",
+            "sms_proveedor": proveedor_configurado() or "sin proveedor",
         }
     )
     return "confirmacion.html", ctx
@@ -357,6 +373,8 @@ def reportes(estado: Estado, params: dict) -> tuple[str, dict]:
             "comunicaciones": estado.comunicaciones,
             "total_quebradas": len(estado.quebradas),
             "historial_parametros": estado.historial_parametros,
+            "sms_modo": "real" if modo_real() else "simulado",
+            "sms_proveedor": proveedor_configurado() or "sin proveedor",
         }
     )
     return "reportes.html", ctx
@@ -392,6 +410,35 @@ def configuracion(estado: Estado, params: dict) -> tuple[str, dict]:
     return "configuracion.html", ctx
 
 
+def suscripcion(estado: Estado, params: dict) -> tuple[str, dict]:
+    ctx = _base(estado, "suscripcion")
+    ctx.update(
+        {
+            "titulo": "Suscripción comunitaria",
+            "quebradas": sorted(
+                estado.quebradas.values(), key=lambda x: x.nombre
+            ),
+            "departamentos": estado.departamentos(),
+            "suscriptores": [
+                {
+                    "nombre": s.nombre or "Sin nombre",
+                    "telefono": _mascarar_telefono(s.telefono),
+                    "telefono_real": s.telefono,
+                    "quebrada": s.quebrada,
+                    "canal": s.canal,
+                    "activo": s.activo,
+                }
+                for s in estado.suscriptores
+            ],
+            "mensaje": params.get("mensaje"),
+            "error": params.get("error"),
+            "sms_modo": "real" if modo_real() else "simulado",
+            "sms_proveedor": proveedor_configurado() or "sin proveedor",
+        }
+    )
+    return "suscripcion.html", ctx
+
+
 # --- Acciones (POST) -------------------------------------------------------
 
 
@@ -401,6 +448,30 @@ def accion_validar(estado: Estado, params: dict) -> str:
     if a:
         return f"/alertas?alerta={codigo}&mensaje=Alerta+{codigo}+validada+en+la+simulación"
     return "/alertas"
+
+
+def accion_notificar_alerta(estado: Estado, params: dict) -> str:
+    codigo = str(params.get("alerta", ""))
+    alerta = estado.alerta(codigo)
+    if alerta is None:
+        return f"/alertas?mensaje={quote_plus('Alerta no encontrada.')}"
+    if not alerta.activa:
+        return f"/alertas?mensaje={quote_plus('La alerta ya está cerrada.')}"
+    if alerta.nivel not in ("alto", "critico"):
+        return (
+            f"/alertas?mensaje="
+            f"{quote_plus('Solo se notifican alertas de nivel alto o crítico.')}"
+        )
+    texto = PLANTILLAS["preventivo"]["texto"]
+    nuevas = estado.despachar_alerta(alerta.quebrada, texto, "preventivo")
+    enviados = sum(1 for c in nuevas if c.resultado == "enviado")
+    fallidos = sum(1 for c in nuevas if c.resultado == "fallido")
+    simulados = sum(1 for c in nuevas if c.resultado == "pendiente")
+    mensaje = (
+        f"Alerta {codigo}: {enviados} SMS enviados, "
+        f"{fallidos} fallidos y {simulados} simulados."
+    )
+    return f"/alertas?alerta={codigo}&mensaje={quote_plus(mensaje)}"
 
 
 def accion_estado_alerta(estado: Estado, params: dict) -> str:
@@ -419,14 +490,82 @@ def accion_confirmar_envio(estado: Estado, params: dict) -> str:
     canales = params.get("canales") or ["SMS"]
     if isinstance(canales, str):
         canales = [canales]
+    plantilla = params.get("plantilla") or "preventivo"
+    texto = PLANTILLAS.get(plantilla, PLANTILLAS["preventivo"])["texto"]
     q = estado.quebrada(codigo)
     destinatarios = q.destinatarios if q else 0
-    estado.registrar_comunicacion(codigo, destinatarios, canales)
+    estado.registrar_comunicacion(
+        codigo, destinatarios, canales, texto=texto, plantilla=plantilla
+    )
+    if modo_real():
+        mensaje = (
+            f"Se procesó el envío para {len(canales)} canal(es). "
+            "Revisa el estado en el historial."
+        )
+    else:
+        mensaje = (
+            f"Registro ficticio creado para {len(canales)} canal(es). "
+            "No se envió ningún mensaje."
+        )
     return (
         f"/notificaciones?quebrada={codigo}"
-        f"&mensaje=Registro+ficticio+creado+para+{len(canales)}+canal(es)."
-        "+No+se+envió+ningún+mensaje"
+        f"&mensaje={mensaje.replace(' ', '+')}"
     )
+
+
+def accion_suscribir(estado: Estado, params: dict) -> str:
+    try:
+        lat = float(params["lat"]) if params.get("lat") else None
+        lon = float(params["lon"]) if params.get("lon") else None
+        suscriptor = estado.suscribir(
+            str(params.get("nombre", "")),
+            str(params.get("telefono", "")),
+            str(params.get("quebrada", "")),
+            params.get("consentimiento") in ("on", "true", "1", "si", "sí"),
+            lat=lat,
+            lon=lon,
+        )
+    except (KeyError, ValueError) as exc:
+        return f"/suscripcion?error={quote_plus(str(exc))}"
+    mensaje = (
+        f"Suscripción registrada para {suscriptor.quebrada}. "
+        f"Teléfono {_mascarar_telefono(suscriptor.telefono)}."
+    )
+    return f"/suscripcion?mensaje={quote_plus(mensaje)}"
+
+
+def accion_baja(estado: Estado, params: dict) -> str:
+    telefono = str(params.get("telefono", ""))
+    ok = estado.baja_suscriptor(telefono)
+    mensaje = (
+        "Suscripción dada de baja."
+        if ok
+        else "No se encontró una suscripción activa para ese teléfono."
+    )
+    return f"/suscripcion?mensaje={quote_plus(mensaje)}"
+
+
+def accion_limpiar_suscriptores(estado: Estado, params: dict) -> str:
+    total = estado.limpiar_suscriptores()
+    mensaje = f"Historial de suscriptores limpiado ({total})."
+    return f"/suscripcion?mensaje={quote_plus(mensaje)}"
+
+
+def accion_probar_alerta(estado: Estado, params: dict) -> str:
+    quebrada = str(params.get("quebrada", ""))
+    plantilla = str(params.get("plantilla") or "preventivo")
+    if not estado.quebrada(quebrada):
+        return f"/suscripcion?error={quote_plus('Quebrada no encontrada.')}"
+    texto = PLANTILLAS.get(plantilla, PLANTILLAS["preventivo"])["texto"]
+    nuevas = estado.despachar_alerta(quebrada, texto, plantilla)
+    enviados = sum(1 for c in nuevas if c.resultado == "enviado")
+    fallidos = sum(1 for c in nuevas if c.resultado == "fallido")
+    simulados = sum(1 for c in nuevas if c.resultado == "pendiente")
+    mensaje = (
+        f"Alerta procesada para {len(nuevas)} suscriptor(es): "
+        f"{enviados} enviados, {fallidos} fallidos, {simulados} simulados."
+    )
+    return f"/suscripcion?mensaje={quote_plus(mensaje)}"
 
 
 def accion_umbrales(estado: Estado, params: dict) -> tuple[str, list[str]]:

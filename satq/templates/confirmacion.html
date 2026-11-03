@@ -19,11 +19,17 @@
     <div class="cab">
       <div class="icono">{{ ico('enviar', 21) }}</div>
       <div>
-        <h2>Confirmar envío simulado</h2>
+        <h2>Confirmar envío</h2>
         <div class="texto-sm texto-muted">Revisa los destinatarios, canales y mensaje.</div>
+        {% if sms_modo == 'real' and 'SMS' in canales_sel %}
         <span class="pildora p-azul mt-8" style="display:inline-flex">
-          {{ ico('circulo', 11) }} Demostración · Ningún envío real
+          {{ ico('circulo', 11) }} SMS real · {{ sms_proveedor }}
         </span>
+        {% else %}
+        <span class="pildora p-azul mt-8" style="display:inline-flex">
+          {{ ico('circulo', 11) }} Demostración · sin envío real
+        </span>
+        {% endif %}
       </div>
     </div>
 
@@ -44,7 +50,12 @@
       {% for c in ['WhatsApp', 'SMS'] %}
       <span class="pildora {{ 'p-azul' if c in canales_sel else 'p-contorno' }}">
         {{ ico('chat' if c == 'WhatsApp' else 'sms', 11) }}
-        {{ c }} · {{ 'seleccionado · no conectado' if c in canales_sel else 'no seleccionado' }}
+        {{ c }} ·
+        {% if c in canales_sel %}
+          {{ 'real · ' ~ sms_proveedor if c == 'SMS' and sms_modo == 'real' else 'simulado' }}
+        {% else %}
+          no seleccionado
+        {% endif %}
       </span>
       {% endfor %}
     </div>
@@ -54,6 +65,19 @@
       <div class="texto">{{ plantilla.texto }}</div>
     </div>
 
+    {% if sms_modo == 'real' and 'SMS' in canales_sel %}
+    <div class="aviso aviso-ambar">
+      {{ ico('alerta', 16) }}
+      <div>
+        <div class="titulo">Se enviará un SMS real</div>
+        <div class="texto">
+          El mensaje se enviará al número de prueba configurado en
+          <code>SATQ_SMS_DESTINO</code> mediante {{ sms_proveedor }}. Verifica el
+          costo y que el destino sea tu propio celular.
+        </div>
+      </div>
+    </div>
+    {% else %}
     <div class="aviso aviso-info">
       {{ ico('info', 16) }}
       <div>
@@ -64,6 +88,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
 
     <div class="nota-fina mt-12">
       Responsable: {{ usuario.nombre }} · {{ usuario.rol }}. Resumen preparado el {{ preparado }}.
@@ -75,7 +100,10 @@
       {% for c in canales_sel %}<input type="hidden" name="canales" value="{{ c }}">{% endfor %}
       <div class="acciones">
         <a class="btn" href="/notificaciones?quebrada={{ quebrada_sel.codigo }}">Cancelar</a>
-        <button class="btn btn-primario" type="submit">{{ ico('check', 16) }} Confirmar simulación</button>
+        <button class="btn btn-primario" type="submit">
+          {{ ico('check', 16) }}
+          {{ 'Confirmar envío SMS' if sms_modo == 'real' and 'SMS' in canales_sel else 'Confirmar simulación' }}
+        </button>
       </div>
     </form>
   </section>

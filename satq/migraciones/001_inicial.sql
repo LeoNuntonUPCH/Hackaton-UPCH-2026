@@ -30,7 +30,13 @@ CREATE TABLE IF NOT EXISTS comunicaciones (
     destinatarios INTEGER NOT NULL,
     canal         TEXT NOT NULL,
     resultado     TEXT NOT NULL,
-    entrega_real  TEXT NOT NULL DEFAULT 'No disponible'
+    entrega_real  TEXT NOT NULL DEFAULT 'No disponible',
+    proveedor     TEXT NOT NULL DEFAULT 'No disponible',
+    id_externo    TEXT NOT NULL DEFAULT '',
+    error         TEXT NOT NULL DEFAULT '',
+    intentos      INTEGER NOT NULL DEFAULT 0,
+    destino       TEXT NOT NULL DEFAULT '',
+    clave_idempotencia TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS historial_parametros (

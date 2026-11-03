@@ -8,7 +8,14 @@
     <div class="bajada">Prepara comunicaciones preventivas para destinatarios autorizados.</div>
   </div>
   <div class="acciones">
-    <span class="marcador-estado">{{ ico('circulo', 13) }} Solo simulación · sin envío real</span>
+    <span class="marcador-estado">
+      {{ ico('circulo', 13) }}
+      {% if sms_modo == 'real' %}
+        SMS real · {{ sms_proveedor }}
+      {% else %}
+        Solo simulación · sin envío real
+      {% endif %}
+    </span>
   </div>
 </div>
 
@@ -66,8 +73,21 @@
               {{ ico('chat' if c.nombre == 'WhatsApp' else 'sms', 17) }}
               <span class="nombre">{{ c.nombre }}</span>
             </div>
-            <div class="estado">{{ ico('circulo', 12) }} No conectado</div>
-            <div class="nota">Seleccionado para simulación</div>
+            <div class="estado">
+              {{ ico('circulo', 12) }}
+              {% if c.nombre == 'SMS' and sms_modo == 'real' %}
+                Conectado · {{ sms_proveedor }}
+              {% else %}
+                No conectado
+              {% endif %}
+            </div>
+            <div class="nota">
+              {% if c.nombre == 'SMS' and sms_modo == 'real' %}
+                Envío real de SMS
+              {% else %}
+                Seleccionado para simulación
+              {% endif %}
+            </div>
           </label>
           {% endfor %}
         </div>
@@ -99,8 +119,17 @@
         </div>
 
         <div class="flex entre centro-v">
-          <span class="nota-fina">No se enviará ningún mensaje real.</span>
-          <button class="btn btn-primario" type="submit">{{ ico('enviar', 16) }} Simular envío</button>
+          <span class="nota-fina">
+            {% if sms_modo == 'real' %}
+              El SMS se enviará al número de prueba configurado.
+            {% else %}
+              No se enviará ningún mensaje real.
+            {% endif %}
+          </span>
+          <button class="btn btn-primario" type="submit">
+            {{ ico('enviar', 16) }}
+            {{ 'Preparar envío SMS' if sms_modo == 'real' else 'Simular envío' }}
+          </button>
         </div>
       </div>
     </section>
@@ -111,15 +140,23 @@
       <div class="cab"><h2>Vista previa</h2></div>
       <div class="cuerpo">
         <span class="pildora p-azul mb-12" style="display:inline-flex">
-          {{ ico('circulo', 11) }} {{ canales_sel[0] if canales_sel else 'SMS' }} · demostración
+          {{ ico('circulo', 11) }} {{ canales_sel[0] if canales_sel else 'SMS' }} ·
+          {{ 'real' if sms_modo == 'real' else 'demostración' }}
         </span>
         <div class="vista-previa mt-12">
-          <div class="de">{{ ico('escudo', 15) }} SATQ · Simulación</div>
+          <div class="de">
+            {{ ico('escudo', 15) }} SATQ ·
+            {{ 'SMS real' if sms_modo == 'real' else 'Simulación' }}
+          </div>
           <div class="cuerpo">{{ plantilla.texto }}</div>
           <div class="hora">{{ ahora_texto }}</div>
         </div>
         <div class="nota-fina mt-12">
-          Vista de referencia. WhatsApp y SMS no están conectados.
+          {% if sms_modo == 'real' %}
+            Vista de referencia. El envío real se realiza por SMS mediante {{ sms_proveedor }}.
+          {% else %}
+            Vista de referencia. WhatsApp y SMS no están conectados.
+          {% endif %}
         </div>
       </div>
     </section>
@@ -139,30 +176,42 @@
 </form>
 
 <section class="tarjeta mt-16">
-  <div class="cab"><h2>Historial de comunicaciones · Simulación</h2></div>
+  <div class="cab"><h2>Historial de comunicaciones</h2></div>
   <div class="cuerpo" style="padding:12px 0 0">
     <table class="tabla">
       <thead>
         <tr>
           <th>Fecha / hora PET</th><th>Localidad</th><th>Destinatarios</th>
-          <th>Canal</th><th>Resultado simulado</th><th>Entrega real</th>
+          <th>Canal</th><th>Resultado</th><th>Entrega</th>
         </tr>
       </thead>
       <tbody>
         {% for c in comunicaciones %}
-        <tr class="{{ 'sel' if loop.first }}">
-          <td>{{ c.momento.day }} oct · {{ hora(c.momento) }}</td>
+        <tr class="{{ 'sel' if loop.first else '' }}">
+          <td>{{ fecha_larga(c.momento) }} · {{ hora(c.momento) }}</td>
           <td>{{ todas_quebradas | selectattr('codigo','equalto',c.quebrada) | map(attribute='nombre') | first }}
             / {{ todas_quebradas | selectattr('codigo','equalto',c.quebrada) | map(attribute='departamento') | first }}</td>
           <td>{{ c.destinatarios }} de prueba</td>
           <td>{{ c.canal }}</td>
-          <td>{{ resultados[c.resultado] }}</td>
-          <td class="sub">{{ c.entrega_real }}</td>
+          <td>
+            {% if c.resultado == 'enviado' and c.proveedor not in ('simulación', 'No disponible', '') %}
+              Enviado · {{ c.proveedor }}
+            {% elif c.resultado == 'fallido' and c.proveedor not in ('simulación', 'No disponible', '') %}
+              Fallido · {{ c.proveedor }}
+            {% else %}
+              {{ resultados[c.resultado] }}
+            {% endif %}
+          </td>
+          <td class="sub">
+            {{ c.entrega_real }}
+            {% if c.id_externo %}<br><small>ID: {{ c.id_externo }}</small>{% endif %}
+            {% if c.error %}<br><small>{{ c.error }}</small>{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    <div class="pie-tabla">Ningún mensaje fue entregado. Todos los registros son ficticios.</div>
+    <div class="pie-tabla">Los envíos reales dependen del proveedor configurado. Los registros de simulación no se entregan.</div>
   </div>
 </section>
 

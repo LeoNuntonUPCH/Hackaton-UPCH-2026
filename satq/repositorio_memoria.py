@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from . import datos
-from .datos import Alerta, CambioParametro, Comunicacion, Quebrada
+from .datos import Alerta, CambioParametro, Comunicacion, Quebrada, Suscriptor
 from .motor import Umbrales
 
 
@@ -17,6 +17,7 @@ class RepositorioMemoria:
         self._umbrales = datos.umbrales_iniciales()
         self._ingestas: dict[str, tuple[str, dict]] = {}
         self._alertas_por_clave: dict[str, tuple[str, dict]] = {}
+        self._suscriptores: dict[str, Suscriptor] = {}
 
     def quebradas(self) -> dict[str,Quebrada]:
         return self._quebradas
@@ -74,6 +75,24 @@ class RepositorioMemoria:
     def agregar_quebrada(self, quebrada: Quebrada, cambio: CambioParametro) -> None:
         self._quebradas[quebrada.codigo] = quebrada
         self._historial.insert(0,cambio)
+
+    def suscriptores(self) -> list[Suscriptor]:
+        return list(self._suscriptores.values())
+
+    def guardar_suscriptor(self, suscriptor: Suscriptor) -> None:
+        clave = f"{suscriptor.canal}:{suscriptor.telefono}"
+        self._suscriptores[clave] = suscriptor
+
+    def desactivar_suscriptor(self, telefono: str, canal: str = "SMS") -> bool:
+        clave = f"{canal}:{telefono}"
+        actual = self._suscriptores.get(clave)
+        if actual is None:
+            return False
+        actual.activo = False
+        return True
+
+    def limpiar_suscriptores(self) -> None:
+        self._suscriptores.clear()
 
 
 

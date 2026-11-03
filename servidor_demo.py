@@ -36,6 +36,7 @@ RUTAS_GET = {
     "/notificaciones/confirmar": vistas.confirmacion,
     "/reportes": vistas.reportes,
     "/configuracion": vistas.configuracion,
+    "/suscripcion": vistas.suscripcion,
     "/login": vistas.login,
 }
 
@@ -144,10 +145,20 @@ class Manejador(BaseHTTPRequestHandler):
             self._redirigir("/dashboard")
         elif ruta == "/alertas/validar":
             self._redirigir(vistas.accion_validar(ESTADO, datos))
+        elif ruta == "/alertas/notificar":
+            self._redirigir(vistas.accion_notificar_alerta(ESTADO, datos))
         elif ruta == "/alertas/estado":
             self._redirigir(vistas.accion_estado_alerta(ESTADO, datos))
         elif ruta == "/notificaciones/confirmar":
             self._redirigir(vistas.accion_confirmar_envio(ESTADO, datos))
+        elif ruta == "/suscripcion":
+            self._redirigir(vistas.accion_suscribir(ESTADO, datos))
+        elif ruta == "/suscripcion/baja":
+            self._redirigir(vistas.accion_baja(ESTADO, datos))
+        elif ruta == "/suscripcion/limpiar":
+            self._redirigir(vistas.accion_limpiar_suscriptores(ESTADO, datos))
+        elif ruta == "/suscripcion/probar":
+            self._redirigir(vistas.accion_probar_alerta(ESTADO, datos))
         elif ruta == "/configuracion/umbrales":
             destino, errores = vistas.accion_umbrales(ESTADO, datos)
             if errores:

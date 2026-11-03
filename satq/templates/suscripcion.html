@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% from "parciales/iconos.html" import ico %}
+{% block contenido %}
+
+<div class="encabezado">
+  <div>
+    <h1>Suscripción comunitaria</h1>
+    <div class="bajada">Registra un número de prueba y la zona para recibir avisos de la quebrada más cercana.</div>
+  </div>
+  <div class="acciones">
+    <span class="marcador-estado">
+      {{ ico('circulo', 13) }}
+      {% if sms_modo == 'real' %}
+        SMS real · {{ sms_proveedor }}
+      {% else %}
+        Solo simulación · sin envío real
+      {% endif %}
+    </span>
+  </div>
+</div>
+
+{% if mensaje %}
+<div class="aviso aviso-exito mb-16">{{ ico('check-circulo', 16) }}<div class="texto" style="color:var(--ink)">{{ mensaje }}</div></div>
+{% endif %}
+{% if error %}
+<div class="aviso aviso-error mb-16">{{ ico('alerta', 16) }}<div class="texto" style="color:var(--ink)">{{ error }}</div></div>
+{% endif %}
+
+<div class="rejilla r-principal-ancha">
+  <div>
+    <section class="tarjeta mb-16">
+      <div class="cab"><h2>Nueva suscripción</h2></div>
+      <div class="cuerpo">
+        <form method="post" action="/suscripcion">
+          <div class="campo">
+            <label for="s-nombre">Nombre (opcional)</label>
+            <input id="s-nombre" type="text" name="nombre" placeholder="Vecino de prueba">
+          </div>
+
+          <div class="campo">
+            <label for="s-telefono">Teléfono celular</label>
+            <input id="s-telefono" type="tel" name="telefono" placeholder="+51999888777" required>
+            <div class="nota-fina">Usa formato internacional. En la demo solo se permiten números autorizados.</div>
+          </div>
+
+          <div class="campo">
+            <label for="s-quebrada">Zona / quebrada</label>
+            <select id="s-quebrada" name="quebrada" required>
+              {% for q in quebradas %}
+              <option value="{{ q.codigo }}">{{ q.nombre }} · {{ q.distrito }} · {{ q.departamento }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="campo">
+            <button class="btn" type="button" onclick="usarUbicacion()">
+              {{ ico('pin', 16) }} Usar mi ubicación (opcional)
+            </button>
+            <div id="ubicacion-estado" class="nota-fina mt-8">
+              Si compartes tu ubicación, se asignará la quebrada más cercana.
+            </div>
+            <input type="hidden" id="s-lat" name="lat" value="">
+            <input type="hidden" id="s-lon" name="lon" value="">
+          </div>
+
+          <label class="fila" style="align-items:flex-start; gap:8px">
+            <input type="checkbox" name="consentimiento" required>
+            <span class="texto-sm">
+              Acepto recibir avisos de demostración por SMS y entiendo que no son
+              alertas oficiales ni sustituyen a las autoridades.
+            </span>
+          </label>
+
+          <div class="acciones mt-16">
+            <button class="btn btn-primario" type="submit">
+              {{ ico('check', 16) }} Suscribirme
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <div class="cab"><h2>Enviar alerta de prueba</h2></div>
+      <div class="cuerpo">
+        <p class="texto-sm texto-muted">
+          Envía la plantilla preventiva a los suscriptores activos de la quebrada
+          seleccionada. En modo real, cada SMS tiene costo y solo se envía a
+          números permitidos.
+        </p>
+        <form method="post" action="/suscripcion/probar" class="flex gap-8" style="flex-wrap:wrap">
+          <select name="quebrada" required style="min-width:240px">
+            {% for q in quebradas %}
+            <option value="{{ q.codigo }}">{{ q.nombre }} · {{ q.distrito }}</option>
+            {% endfor %}
+          </select>
+          <select name="plantilla">
+            <option value="preventivo">Aviso preventivo</option>
+            <option value="seguimiento">Aviso de seguimiento</option>
+            <option value="cierre">Cierre de episodio</option>
+          </select>
+          <button class="btn btn-primario" type="submit">
+            {{ ico('enviar', 16) }} Enviar a suscriptores
+          </button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <div>
+    <section class="tarjeta">
+      <div class="cab"><h2>Suscriptores registrados</h2></div>
+      <div class="cuerpo" style="padding:12px 0 0">
+        {% if suscriptores %}
+        <table class="tabla">
+          <thead>
+            <tr><th>Nombre</th><th>Teléfono</th><th>Quebrada</th><th>Canal</th><th>Estado</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for s in suscriptores %}
+            <tr>
+              <td>{{ s.nombre }}</td>
+              <td>{{ s.telefono }}</td>
+              <td>{{ s.quebrada }}</td>
+              <td>{{ s.canal }}</td>
+              <td>{{ 'Activo' if s.activo else 'Inactivo' }}</td>
+              <td>
+                {% if s.activo %}
+                <form method="post" action="/suscripcion/baja">
+                  <input type="hidden" name="telefono" value="{{ s.telefono_real }}">
+                  <button class="btn btn-sm" type="submit">Dar de baja</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="cuerpo">
+          <p class="texto-sm texto-muted">Aún no hay suscriptores. Registra un número de prueba.</p>
+        </div>
+        {% endif %}
+        <div class="pie-tabla">Los teléfonos se muestran enmascarados. No compartas datos personales reales en la demo.</div>
+        {% if suscriptores %}
+        <form method="post" action="/suscripcion/limpiar" class="mt-12"
+              onsubmit="return confirm('¿Eliminar todos los suscriptores del historial?');">
+          <button class="btn btn-sm" type="submit">Limpiar historial de suscriptores</button>
+        </form>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+function usarUbicacion() {
+  const estado = document.getElementById('ubicacion-estado');
+  if (!navigator.geolocation) {
+    estado.textContent = 'Geolocalización no disponible en este navegador.';
+    return;
+  }
+  estado.textContent = 'Obteniendo ubicación…';
+  navigator.geolocation.getCurrentPosition(
+    function (pos) {
+      document.getElementById('s-lat').value = pos.coords.latitude;
+      document.getElementById('s-lon').value = pos.coords.longitude;
+      estado.textContent = 'Ubicación capturada: se usará la quebrada más cercana.';
+    },
+    function () {
+      estado.textContent = 'No se pudo obtener la ubicación. Puedes elegir la zona manualmente.';
+    }
+  );
+}
+</script>
+
+{% endblock %}

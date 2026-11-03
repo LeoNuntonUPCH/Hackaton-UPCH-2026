@@ -82,7 +82,7 @@
             <tr class="clicable {{ 'sel' if seleccionada and a.codigo == seleccionada.codigo }}"
                 onclick="location.href='/alertas?alerta={{ a.codigo }}&estado={{ filtros.estado }}&nivel={{ filtros.nivel }}&departamento={{ filtros.departamento }}'">
               <td>
-                {% if a.momento.day != ahora.day %}{{ a.momento.day }} oct · {% endif %}{{ hora(a.momento) }}
+                {% if a.momento.day != ahora.day %}{{ a.momento.strftime('%d/%m') }} · {% endif %}{{ hora(a.momento) }}
               </td>
               <td>
                 <a href="/quebrada/{{ q.codigo }}">{{ q.nombre }}</a>
@@ -168,6 +168,12 @@
           <form method="post" action="/alertas/validar" style="flex:1">
             <input type="hidden" name="alerta" value="{{ seleccionada.codigo }}">
             <button class="btn btn-primario btn-bloque" type="submit">Validar simulación</button>
+          </form>
+          {% endif %}
+          {% if seleccionada.nivel in ('alto', 'critico') and seleccionada.activa %}
+          <form method="post" action="/alertas/notificar">
+            <input type="hidden" name="alerta" value="{{ seleccionada.codigo }}">
+            <button class="btn" type="submit">{{ ico('enviar', 15) }} Enviar SMS de alerta</button>
           </form>
           {% endif %}
         </div>

@@ -59,24 +59,38 @@
     </section>
 
     <section class="tarjeta">
-      <div class="cab"><h2>Comunicaciones simuladas</h2></div>
+      <div class="cab"><h2>Comunicaciones</h2></div>
       <div class="cuerpo" style="padding:12px 0 0">
         <table class="tabla">
           <thead>
-            <tr><th>Fecha / hora PET</th><th>Canal</th><th>Destinatarios</th><th>Resultado simulado</th></tr>
+            <tr><th>Fecha / hora PET</th><th>Canal</th><th>Destinatarios</th><th>Resultado</th></tr>
           </thead>
           <tbody>
             {% for c in comunicaciones %}
             <tr>
-              <td>{{ c.momento.day }} oct · {{ hora(c.momento) }}</td>
+              <td>{{ fecha_larga(c.momento) }} · {{ hora(c.momento) }}</td>
               <td>{{ c.canal }}</td>
               <td>{{ c.destinatarios }} de prueba</td>
-              <td class="sub">{{ resultados[c.resultado] }}</td>
+              <td class="sub">
+                {% if c.resultado == 'enviado' and c.proveedor not in ('simulación', 'No disponible', '') %}
+                  Enviado · {{ c.proveedor }}
+                {% elif c.resultado == 'fallido' and c.proveedor not in ('simulación', 'No disponible', '') %}
+                  Fallido · {{ c.proveedor }}
+                {% else %}
+                  {{ resultados[c.resultado] }}
+                {% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
-        <div class="pie-tabla">Entrega real: no disponible en ningún caso. Ningún canal está conectado.</div>
+        <div class="pie-tabla">
+          {% if sms_modo == 'real' %}
+            Los envíos reales dependen del proveedor {{ sms_proveedor }}. Los registros de simulación no se entregan.
+          {% else %}
+            Entrega real: no disponible en ningún caso. Ningún canal está conectado.
+          {% endif %}
+        </div>
       </div>
     </section>
   </div>

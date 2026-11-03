@@ -120,12 +120,19 @@ def estado_base_datos() -> dict[str, Any]:
 
 def estado_salud() -> dict[str, Any]:
     """Semáforo de salud para el endpoint /health."""
+    from mensajeria import maximo_envios, modo_real, proveedor_configurado
+
     base = estado_base_datos()
     saludable = base["conectada"] is not False
     resumen = resumen_metricas()
     return {
         "estado": "ok" if saludable else "degradado",
         "base_datos": base,
+        "mensajeria": {
+            "modo": "real" if modo_real() else "simulado",
+            "proveedor": proveedor_configurado() or "sin proveedor",
+            "max_envios": maximo_envios(),
+        },
         "uptime_s": resumen["uptime_s"],
         "peticiones_total": resumen["peticiones_total"],
         "errores_5xx": resumen["errores_5xx"],

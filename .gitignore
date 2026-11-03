@@ -7,3 +7,6 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+iniciar_demo.bat
+.satqito_offset

@@ -179,7 +179,7 @@
           <tbody>
             {% for h in historial_parametros %}
             <tr>
-              <td>{{ h.momento.day }} oct · {{ hora(h.momento) }}</td>
+              <td>{{ fecha_larga(h.momento) }} · {{ hora(h.momento) }}</td>
               <td class="{{ 'nivel-critico' if h.critico }}">{{ h.parametro }}</td>
               <td class="sub">{{ h.responsable }}</td>
             </tr>

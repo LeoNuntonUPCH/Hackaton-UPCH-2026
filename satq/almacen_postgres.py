@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .datos import Alerta, CambioParametro, Comunicacion, Quebrada
+from .datos import Alerta, CambioParametro, Comunicacion, Quebrada, Suscriptor
 from .motor import Umbrales
 
 DSN = os.environ.get("SATQ_DSN", "postgresql://postgres@localhost:5432/satq")
@@ -21,7 +21,8 @@ def _conectar():
 
 def crear_esquema() -> None:
     with _conectar() as cx, cx.cursor() as cur:
-        cur.execute(RUTA_SQL.read_text(encoding="utf-8"))
+        for ruta in sorted(RUTA_SQL.parent.glob("*.sql")):
+            cur.execute(ruta.read_text(encoding="utf-8"))
     # psycopg hace commit al salir del bloque
 
 
@@ -48,11 +49,15 @@ def cargar(estado) -> None:
                                 estado=r[4], fuente=r[5], acumulado=r[6], nota=r[7])
                          for r in cur.fetchall()]
         cur.execute("SELECT momento, quebrada, destinatarios, canal, resultado, "
-                    "entrega_real FROM comunicaciones ORDER BY momento DESC")
-        repo._comunicaciones = [Comunicacion(momento=r[0], quebrada=r[1],
-                                             destinatarios=r[2], canal=r[3],
-                                             resultado=r[4], entrega_real=r[5])
-                                for r in cur.fetchall()]
+                    "entrega_real, proveedor, id_externo, error, intentos, "
+                    "destino, clave_idempotencia FROM comunicaciones "
+                    "ORDER BY momento DESC")
+        repo._comunicaciones = [Comunicacion(
+            momento=r[0], quebrada=r[1], destinatarios=r[2], canal=r[3],
+            resultado=r[4], entrega_real=r[5], proveedor=r[6],
+            id_externo=r[7], error=r[8], intentos=r[9], destino=r[10],
+            clave_idempotencia=r[11],
+        ) for r in cur.fetchall()]
         cur.execute("SELECT momento, parametro, responsable, critico "
                     "FROM historial_parametros ORDER BY momento DESC")
         repo._historial = [CambioParametro(momento=r[0], parametro=r[1],
@@ -72,13 +77,28 @@ def cargar(estado) -> None:
         repo._alertas_por_clave = {
             r[0]: (r[1], dict(r[2])) for r in cur.fetchall()
         }
+        cur.execute("SELECT telefono, canal, quebrada, nombre, lat, lon, "
+                    "consentimiento, activo, creado, origen, telegram_chat_id, "
+                    "telegram_usuario, verificado, codigo_hash, codigo_expira, "
+                    "intentos_codigo FROM suscriptores")
+        repo._suscriptores = {
+            f"{r[1]}:{r[0]}": Suscriptor(
+                telefono=r[0], canal=r[1], quebrada=r[2], nombre=r[3],
+                lat=r[4], lon=r[5], consentimiento=r[6], activo=r[7],
+                creado=r[8], origen=r[9], telegram_chat_id=r[10],
+                telegram_usuario=r[11], verificado=r[12], codigo_hash=r[13],
+                codigo_expira=r[14], intentos_codigo=r[15],
+            )
+            for r in cur.fetchall()
+        }
 
 
 def guardar(estado) -> None:
     from psycopg.types.json import Jsonb
     with _conectar() as cx, cx.cursor() as cur:
         cur.execute("TRUNCATE quebradas, alertas, comunicaciones, "
-                    "historial_parametros, umbrales, ingestas, alertas_clave")
+                    "historial_parametros, umbrales, ingestas, alertas_clave, "
+                    "suscriptores")
         for q in estado.quebradas.values():
             cur.execute(
                 "INSERT INTO quebradas (codigo, nombre, distrito, provincia, "
@@ -98,9 +118,12 @@ def guardar(estado) -> None:
         for c in estado.comunicaciones:
             cur.execute(
                 "INSERT INTO comunicaciones (momento, quebrada, destinatarios, "
-                "canal, resultado, entrega_real) VALUES (%s,%s,%s,%s,%s,%s)",
+                "canal, resultado, entrega_real, proveedor, id_externo, error, "
+                "intentos, destino, clave_idempotencia) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (c.momento, c.quebrada, c.destinatarios, c.canal,
-                 c.resultado, c.entrega_real),
+                 c.resultado, c.entrega_real, c.proveedor, c.id_externo,
+                 c.error, c.intentos, c.destino, c.clave_idempotencia),
             )
         for h in estado.historial_parametros:
             cur.execute(
@@ -126,4 +149,16 @@ def guardar(estado) -> None:
                 "INSERT INTO alertas_clave (clave, huella, resultado) "
                 "VALUES (%s,%s,%s)",
                 (clave, huella, Jsonb(resultado)),
+            )
+        for s in repo._suscriptores.values():
+            cur.execute(
+                "INSERT INTO suscriptores (telefono, canal, quebrada, nombre, "
+                "lat, lon, consentimiento, activo, creado, origen, "
+                "telegram_chat_id, telegram_usuario, verificado, codigo_hash, "
+                "codigo_expira, intentos_codigo) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (s.telefono, s.canal, s.quebrada, s.nombre, s.lat, s.lon,
+                 s.consentimiento, s.activo, s.creado, s.origen,
+                 s.telegram_chat_id, s.telegram_usuario, s.verificado,
+                 s.codigo_hash, s.codigo_expira, s.intentos_codigo),
             )

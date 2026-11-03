@@ -9,12 +9,19 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from .motor import Umbrales, acumulado_movil
 
-# Momento congelado de la demostración, igual al del diseño.
-AHORA = datetime(2026, 10, 26, 10, 35)
+
+# Hora actual de Perú (UTC-5, sin horario de verano).
+def ahora_peru() -> datetime:
+    return (datetime.now(timezone.utc) - timedelta(hours=5)).replace(
+        tzinfo=None, microsecond=0
+    )
+
+
+AHORA = ahora_peru()
 ZONA = "PET"
 
 
@@ -80,6 +87,32 @@ class Comunicacion:
     canal: str             # SMS | WhatsApp
     resultado: str         # enviado | pendiente | fallido
     entrega_real: str = "No disponible"
+    proveedor: str = "No disponible"
+    id_externo: str = ""
+    error: str = ""
+    intentos: int = 0
+    destino: str = ""
+    clave_idempotencia: str = ""
+
+
+@dataclass
+class Suscriptor:
+    telefono: str
+    quebrada: str
+    nombre: str = ""
+    canal: str = "SMS"
+    lat: float | None = None
+    lon: float | None = None
+    consentimiento: bool = False
+    activo: bool = True
+    creado: datetime | None = None
+    origen: str = "web"
+    telegram_chat_id: str = ""
+    telegram_usuario: str = ""
+    verificado: bool = True
+    codigo_hash: str = ""
+    codigo_expira: datetime | None = None
+    intentos_codigo: int = 0
 
 
 @dataclass
@@ -232,32 +265,32 @@ def construir_quebradas() -> dict[str, Quebrada]:
     return quebradas
 
 
-def _h(hora: int, minuto: int, dia: int = 26) -> datetime:
-    return datetime(2026, 10, dia, hora, minuto)
+def _hace(minutos: int) -> datetime:
+    return AHORA - timedelta(minutes=minutos)
 
 
 def construir_alertas() -> list[Alerta]:
     """Las siete alertas del escenario de demostración."""
     return [
-        Alerta("AL-0007", "huaycoloro", _h(10, 35), "critico", "pendiente",
+        Alerta("AL-0007", "huaycoloro", _hace(0), "critico", "pendiente",
                "Automática · demo", 42.0,
                "Detección automática registrada. Pendiente de revisión."),
-        Alerta("AL-0006", "chaclacayo", _h(10, 20), "alto", "validada",
+        Alerta("AL-0006", "chaclacayo", _hace(15), "alto", "validada",
                "Autoridad · simulación", 34.0,
                "Revisada por autoridad regional en el entorno de demostración."),
-        Alerta("AL-0005", "el-porvenir", _h(10, 5), "alto", "enviada",
+        Alerta("AL-0005", "el-porvenir", _hace(30), "alto", "enviada",
                "Autoridad · simulación", 31.0,
                "Comunicación preparada y registrada como enviada en la simulación."),
-        Alerta("AL-0004", "castilla", _h(9, 50), "moderado", "pendiente",
+        Alerta("AL-0004", "castilla", _hace(45), "moderado", "pendiente",
                "Automática · demo", 24.0,
                "Detección automática registrada. Pendiente de revisión."),
-        Alerta("AL-0003", "chaclacayo", _h(9, 40), "moderado", "validada",
+        Alerta("AL-0003", "chaclacayo", _hace(55), "moderado", "validada",
                "Autoridad · simulación", 22.0,
                "Revisada por autoridad regional en el entorno de demostración."),
-        Alerta("AL-0002", "castilla", _h(9, 25), "moderado", "pendiente",
+        Alerta("AL-0002", "castilla", _hace(70), "moderado", "pendiente",
                "Automática · demo", 21.0,
                "Detección automática registrada. Pendiente de revisión."),
-        Alerta("AL-0001", "huaycoloro", _h(16, 10, dia=25), "moderado", "cerrada",
+        Alerta("AL-0001", "huaycoloro", _hace(18 * 60 + 25), "moderado", "cerrada",
                "Autoridad · simulación", 23.0,
                "Episodio cerrado por la autoridad en el entorno de demostración."),
     ]
@@ -265,17 +298,17 @@ def construir_alertas() -> list[Alerta]:
 
 def construir_comunicaciones() -> list[Comunicacion]:
     return [
-        Comunicacion(_h(10, 20), "chaclacayo", 12, "SMS", "enviado"),
-        Comunicacion(_h(10, 10), "el-porvenir", 8, "WhatsApp", "pendiente"),
-        Comunicacion(_h(9, 50), "castilla", 10, "SMS", "fallido"),
+        Comunicacion(_hace(15), "chaclacayo", 12, "SMS", "enviado"),
+        Comunicacion(_hace(25), "el-porvenir", 8, "WhatsApp", "pendiente"),
+        Comunicacion(_hace(45), "castilla", 10, "SMS", "fallido"),
     ]
 
 
 def construir_historial_parametros() -> list[CambioParametro]:
     return [
-        CambioParametro(_h(9, 0), "Crítico: 40 mm/6 h · demo", "Diego Salazar",
+        CambioParametro(_hace(95), "Crítico: 40 mm/6 h · demo", "Diego Salazar",
                         critico=True),
-        CambioParametro(_h(16, 30, dia=25), "Ventana: 6 h · demo", "Diego Salazar"),
+        CambioParametro(_hace(18 * 60 + 5), "Ventana: 6 h · demo", "Diego Salazar"),
     ]
 
 

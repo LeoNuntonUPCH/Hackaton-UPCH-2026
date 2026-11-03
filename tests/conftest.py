@@ -22,6 +22,8 @@ from satq.repositorio_memoria import RepositorioMemoria  # noqa: E402
 def _sin_postgres(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SATQ_DB", raising=False)
     monkeypatch.delenv("SATQ_DSN", raising=False)
+    monkeypatch.setenv("SATQ_SMS_MODO", "simulado")
+    monkeypatch.delenv("SATQ_SMS_DESTINO", raising=False)
 
 
 @pytest.fixture

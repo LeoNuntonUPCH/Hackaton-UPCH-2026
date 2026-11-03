@@ -107,6 +107,17 @@ def _verificar_clave_n8n(x_api_key: str | None) -> None:
         raise HTTPException(status_code=401, detail="API key inválida.")
 
 
+def _verificar_clave_bot(x_bot_key: str | None) -> None:
+    clave_configurada = os.getenv("SATQ_BOT_API_KEY")
+    if not clave_configurada:
+        raise HTTPException(
+            status_code=503,
+            detail="La API del bot no está configurada en este servidor.",
+        )
+    if x_bot_key != clave_configurada:
+        raise HTTPException(status_code=401, detail="Clave del bot inválida.")
+
+
 # --- Pantallas -------------------------------------------------------------
 
 
@@ -177,6 +188,11 @@ def configuracion(request: Request) -> HTMLResponse:
     return _html(vistas.configuracion(ESTADO, _params(request)))
 
 
+@app.get("/suscripcion", response_class=HTMLResponse, include_in_schema=False)
+def suscripcion(request: Request) -> HTMLResponse:
+    return _html(vistas.suscripcion(ESTADO, _params(request)))
+
+
 # --- Acciones --------------------------------------------------------------
 
 
@@ -184,6 +200,15 @@ def configuracion(request: Request) -> HTMLResponse:
 async def validar(request: Request) -> RedirectResponse:
     formulario = await request.form()
     destino = vistas.accion_validar(
+        ESTADO, {"alerta": str(formulario.get("alerta", ""))}
+    )
+    return RedirectResponse(destino, status_code=303)
+
+
+@app.post("/alertas/notificar", include_in_schema=False)
+async def notificar_alerta(request: Request) -> RedirectResponse:
+    formulario = await request.form()
+    destino = vistas.accion_notificar_alerta(
         ESTADO, {"alerta": str(formulario.get("alerta", ""))}
     )
     return RedirectResponse(destino, status_code=303)
@@ -210,6 +235,51 @@ async def confirmar_envio(request: Request) -> RedirectResponse:
         {
             "quebrada": formulario.get("quebrada", "huaycoloro"),
             "canales": formulario.getlist("canales") or ["SMS"],
+        },
+    )
+    return RedirectResponse(destino, status_code=303)
+
+
+@app.post("/suscripcion", include_in_schema=False)
+async def suscribir(request: Request) -> RedirectResponse:
+    formulario = await request.form()
+    destino = vistas.accion_suscribir(
+        ESTADO,
+        {
+            "nombre": formulario.get("nombre", ""),
+            "telefono": formulario.get("telefono", ""),
+            "quebrada": formulario.get("quebrada", ""),
+            "consentimiento": formulario.get("consentimiento", ""),
+            "lat": formulario.get("lat", ""),
+            "lon": formulario.get("lon", ""),
+        },
+    )
+    return RedirectResponse(destino, status_code=303)
+
+
+@app.post("/suscripcion/baja", include_in_schema=False)
+async def baja_suscripcion(request: Request) -> RedirectResponse:
+    formulario = await request.form()
+    destino = vistas.accion_baja(
+        ESTADO, {"telefono": formulario.get("telefono", "")}
+    )
+    return RedirectResponse(destino, status_code=303)
+
+
+@app.post("/suscripcion/limpiar", include_in_schema=False)
+async def limpiar_suscripciones() -> RedirectResponse:
+    destino = vistas.accion_limpiar_suscriptores(ESTADO, {})
+    return RedirectResponse(destino, status_code=303)
+
+
+@app.post("/suscripcion/probar", include_in_schema=False)
+async def probar_alerta_suscritos(request: Request) -> RedirectResponse:
+    formulario = await request.form()
+    destino = vistas.accion_probar_alerta(
+        ESTADO,
+        {
+            "quebrada": formulario.get("quebrada", ""),
+            "plantilla": formulario.get("plantilla", "preventivo"),
         },
     )
     return RedirectResponse(destino, status_code=303)
@@ -494,6 +564,191 @@ async def api_crear_alerta(
         else 200
     )
     return JSONResponse(status_code=estado_http, content=resultado)
+
+
+@app.get("/api/bot/estado", tags=["Bot"])
+def bot_estado(
+    x_bot_key: str | None = Header(default=None, alias="X-Bot-Key"),
+) -> dict:
+    """Estado resumido para el saludo de Satqito."""
+    _verificar_clave_bot(x_bot_key)
+    resumen = ESTADO.resumen()
+    activas = [a for a in ESTADO.alertas if a.activa]
+    orden = {"critico": 4, "alto": 3, "moderado": 2, "bajo": 1, "sin_datos": 0}
+    nivel = max(
+        (a.nivel for a in activas), key=lambda n: orden.get(n, 0), default="bajo"
+    )
+    return {
+        "aviso": "Datos simulados. No es una alerta oficial.",
+        "nivel_maximo": nivel,
+        "alertas_activas": len(activas),
+        "resumen": resumen,
+        "quebradas_monitoreadas": len(ESTADO.quebradas),
+    }
+
+
+@app.get("/api/bot/quebrada", tags=["Bot"])
+def bot_quebrada(
+    lat: float = Query(...),
+    lon: float = Query(...),
+    x_bot_key: str | None = Header(default=None, alias="X-Bot-Key"),
+) -> dict:
+    """Devuelve la quebrada más cercana a una ubicación."""
+    _verificar_clave_bot(x_bot_key)
+    q = ESTADO.quebrada_mas_cercana(lat, lon)
+    if q is None:
+        raise HTTPException(status_code=404, detail="No hay quebradas registradas.")
+    distancia = ESTADO._haversine(lat, lon, q.lat, q.lon)
+    return {
+        "codigo": q.codigo,
+        "nombre": q.nombre,
+        "distrito": q.distrito,
+        "provincia": q.provincia,
+        "departamento": q.departamento,
+        "distancia_km": round(distancia, 2),
+    }
+
+
+@app.post("/api/bot/suscribir", tags=["Bot"])
+async def bot_suscribir(
+    request: Request,
+    x_bot_key: str | None = Header(default=None, alias="X-Bot-Key"),
+) -> dict:
+    """Registra una suscripción desde Satqito y envía el código SMS."""
+    _verificar_clave_bot(x_bot_key)
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="JSON inválido.") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="El cuerpo debe ser un objeto JSON.")
+    if payload.get("consentimiento") is not True:
+        raise HTTPException(status_code=400, detail="Falta el consentimiento.")
+    quebrada = str(payload.get("quebrada", ""))
+    telefono = str(payload.get("telefono", ""))
+    chat_id = str(payload.get("chat_id", ""))
+    nombre = str(payload.get("nombre", ""))
+    usuario = str(payload.get("usuario", ""))
+    lat = payload.get("lat")
+    lon = payload.get("lon")
+    try:
+        suscriptor = ESTADO.suscribir_telegram(
+            nombre,
+            telefono,
+            quebrada,
+            chat_id,
+            usuario,
+            float(lat) if lat is not None else None,
+            float(lon) if lon is not None else None,
+        )
+        envio = ESTADO.iniciar_verificacion(suscriptor.telefono)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Quebrada no encontrada.") from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "ok": True,
+        "quebrada": suscriptor.quebrada,
+        "telefono": ESTADO._mascarar_destino(suscriptor.telefono),
+        "verificado": False,
+        "codigo_enviado": envio["enviado"],
+        "simulado": envio["simulado"],
+        "error": envio["error"],
+    }
+
+
+@app.post("/api/bot/verificar", tags=["Bot"])
+async def bot_verificar(
+    request: Request,
+    x_bot_key: str | None = Header(default=None, alias="X-Bot-Key"),
+) -> dict:
+    """Verifica el código SMS de 4 dígitos."""
+    _verificar_clave_bot(x_bot_key)
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="JSON inválido.") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="El cuerpo debe ser un objeto JSON.")
+    try:
+        return ESTADO.verificar_codigo(
+            str(payload.get("telefono", "")), str(payload.get("codigo", ""))
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail="Teléfono no registrado."
+        ) from exc
+
+
+@app.post("/api/bot/baja", tags=["Bot"])
+async def bot_baja(
+    request: Request,
+    x_bot_key: str | None = Header(default=None, alias="X-Bot-Key"),
+) -> dict:
+    """Da de baja una suscripción."""
+    _verificar_clave_bot(x_bot_key)
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="JSON inválido.") from exc
+    telefono = str(payload.get("telefono", "")) if isinstance(payload, dict) else ""
+    chat_id = str(payload.get("chat_id", "")) if isinstance(payload, dict) else ""
+    if chat_id:
+        suscriptor = ESTADO.suscriptor_por_chat(chat_id)
+        if suscriptor is None:
+            return {"ok": False, "error": "Suscripción no encontrada."}
+        telefono = suscriptor.telefono
+    return {"ok": ESTADO.baja_suscriptor(telefono)}
+
+
+@app.get("/api/bot/suscriptor", tags=["Bot"])
+def bot_suscriptor(
+    chat_id: str = Query(...),
+    x_bot_key: str | None = Header(default=None, alias="X-Bot-Key"),
+) -> dict:
+    """Datos de la suscripción asociada a un chat de Telegram."""
+    _verificar_clave_bot(x_bot_key)
+    s = ESTADO.suscriptor_por_chat(chat_id)
+    if s is None:
+        raise HTTPException(status_code=404, detail="Suscripción no encontrada.")
+    return {
+        "nombre": s.nombre,
+        "telefono": ESTADO._mascarar_destino(s.telefono),
+        "quebrada": s.quebrada,
+        "canal": s.canal,
+        "verificado": s.verificado,
+        "activo": s.activo,
+        "origen": s.origen,
+    }
+
+
+@app.post("/api/bot/probar", tags=["Bot"])
+async def bot_probar(
+    request: Request,
+    x_bot_key: str | None = Header(default=None, alias="X-Bot-Key"),
+) -> dict:
+    """Envía un SMS de prueba únicamente al suscriptor del chat."""
+    _verificar_clave_bot(x_bot_key)
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="JSON inválido.") from exc
+    chat_id = str(payload.get("chat_id", "")) if isinstance(payload, dict) else ""
+    suscriptor = ESTADO.suscriptor_por_chat(chat_id)
+    if suscriptor is None:
+        raise HTTPException(status_code=404, detail="Suscripción no encontrada.")
+    if not suscriptor.verificado:
+        raise HTTPException(
+            status_code=400, detail="Verifica tu número antes de pedir una prueba."
+        )
+    try:
+        resultado = ESTADO.enviar_prueba(suscriptor.telefono)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Teléfono no registrado.") from exc
+    return {
+        "ok": resultado["estado"] in ("enviado", "pendiente"),
+        **resultado,
+    }
 
 
 @app.post("/api/reiniciar", tags=["API"])

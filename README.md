@@ -51,7 +51,9 @@ satq-digital/
 ├── pyproject.toml              Configuración de pytest, ruff y mypy
 ├── tests/                      Pruebas con pytest
 ├── n8n/                        Workflow de ingesta demo + guía
-├── docs/                       Observabilidad
+├── mensajeria/                 Canales SMS (Twilio/Vonage/Infobip) y simulado
+├── satqito/                    Bot de Telegram (suscripción y consulta)
+├── docs/                       Observabilidad, mensajería y suscripción
 ├── .github/workflows/ci.yml    Integración continua
 └── satq/
     ├── motor.py                Motor de clasificación de riesgo  ← el corazón
@@ -89,6 +91,9 @@ como SVG en el servidor. El prototipo funciona sin conexión.
 
 Dos pantallas adicionales que no estaban en el diseño: `/quebradas`
 (listado completo) y `/reportes` (agregados del escenario).
+
+`/suscripcion` permite registrar un teléfono de prueba y una zona: el sistema
+asigna la quebrada más cercana y envía avisos a sus suscriptores.
 
 ---
 
@@ -145,13 +150,14 @@ propia interfaz (`/configuracion` → pestaña *Fuentes y conexiones*).
 | Panel web | Streamlit o React | HTML/CSS + Jinja2 servido por FastAPI |
 | Base de datos | PostgreSQL | Opcional: PostgreSQL o memoria (por defecto) |
 | Automatización | n8n | Demo: workflow de ingesta en `n8n/` |
-| Mensajería | API WhatsApp / SMS | Simulada, sin envío |
+| Bot de Telegram | — | **Implementado:** Satqito (registro y consulta) |
+| Mensajería | API WhatsApp / SMS | SMS real opcional (Infobip/Twilio/Vonage); simulado por defecto |
 | Fuentes de datos | SENAMHI · INAIGEM | No conectadas; series sintéticas |
 
 La diferencia entre "implementado", "demo" y "simulado" importa: la persistencia
 en PostgreSQL funciona, pero es opcional; el workflow de n8n existe, pero no se
-conecta a fuentes oficiales; y la mensajería prepara el mensaje y registra el
-envío, pero ningún destinatario recibe nada.
+conecta a fuentes oficiales; y la mensajería puede enviar SMS reales solo a
+números autorizados, con modo simulado por defecto.
 
 ---
 
@@ -184,13 +190,108 @@ respaldo siempre usa memoria.
 
 ---
 
+## Mensajería SMS
+
+El canal principal es **SMS**, porque el destinatario no necesita datos móviles
+ni WiFi: solo cobertura celular. El envío real se activa por variables de
+entorno; sin ellas, el sistema funciona en modo **simulado** para desarrollo,
+pruebas y CI.
+
+```powershell
+# Twilio
+$env:SATQ_SMS_MODO="real"
+$env:SATQ_SMS_PROVEEDOR="twilio"
+$env:SATQ_TWILIO_SID="AC..."
+$env:SATQ_TWILIO_TOKEN="..."
+$env:SATQ_TWILIO_FROM="+1..."
+$env:SATQ_SMS_DESTINO="+51..."
+$env:SATQ_SMS_MAX_ENVIOS="10"
+```
+
+También se admite **Vonage** (`SATQ_SMS_PROVEEDOR=vonage`) e **Infobip**
+(`SATQ_SMS_PROVEEDOR=infobip`, con `SATQ_INFOBIP_API_KEY`,
+`SATQ_INFOBIP_BASE_URL` y `SATQ_INFOBIP_FROM`). Cada envío registra estado,
+proveedor, id externo, error, intentos y destino enmascarado. Hay un tope de
+envíos, un único destino configurado e idempotencia por alerta + canal +
+plantilla.
+
+Detalle completo en `docs/mensajeria.md`.
+
+---
+
+## Suscripción comunitaria
+
+`/suscripcion` permite que un vecino registre su teléfono de prueba y su zona.
+Si comparte su ubicación, el sistema calcula la **quebrada más cercana**; si no,
+usa la zona seleccionada. El registro exige consentimiento explícito y el
+teléfono se muestra enmascarado.
+
+Los suscriptores activos de una quebrada reciben los avisos cuando se despacha
+una alerta:
+
+- **Manual:** botón "Enviar a suscriptores" en `/suscripcion`.
+- **Automático:** con `SATQ_ALERTAS_AUTO=1`, al crearse una alerta nueva.
+
+En modo real, el envío solo se permite a números incluidos en
+`SATQ_SMS_DESTINOS_PERMITIDOS`. Hay tope de envíos e idempotencia por alerta,
+canal, plantilla y teléfono. La baja se hace desde la misma pantalla.
+
+Detalle completo en `docs/suscripcion.md`.
+
+---
+
+## Satqito (bot de Telegram)
+
+`satqito/` es un bot independiente que habla con la API de SATQ. **No modifica
+alertas**: solo consulta el estado, registra suscripciones y verifica el teléfono
+con un código SMS de 4 dígitos. Las alertas se siguen enviando por **SMS**.
+
+### Lanzador para la demo
+
+Haz doble clic en **`iniciar_demo.bat`** (archivo local, no se sube al repo).
+Levanta SATQ y Satqito, y se detiene al cerrar las ventanas.
+
+Comparte el bot: <https://t.me/SatqitoAlertasBot>.
+
+### Comportamiento para el jurado
+
+- Cada persona que se registra recibe su **propio SMS** de verificación en el
+  número que escribió.
+- `/probar` envía un SMS de prueba **solo a esa persona**, no a todos.
+- Las alertas reales se envían a los suscriptores de la quebrada afectada.
+- Con `SATQ_SMS_PERMITIR_ABIERTOS=1` se permite que cualquier número se registre,
+  con un tope (`SATQ_SMS_MAX_ENVIOS`) para controlar el costo.
+
+### Opción manual
+
+```powershell
+# Terminal 1
+$env:SATQ_BOT_API_KEY="clave-interna-del-bot"
+python -m uvicorn app:app --host 127.0.0.1 --port 8000
+
+# Terminal 2
+$env:SATQ_TELEGRAM_BOT_TOKEN="123456:ABC..."
+$env:SATQ_BOT_API_KEY="clave-interna-del-bot"
+$env:SATQ_API_URL="http://127.0.0.1:8000"
+python -m satqito
+```
+
+Flujo: `/start` → saludo y estado del país → consentimiento → teléfono →
+ubicación → quebrada más cercana → código SMS de 4 dígitos → suscripción
+registrada. Comandos: `/estado`, `/probar`, `/baja`, `/ayuda`.
+
+No se necesitan grupos de Telegram: el bot funciona por chat directo.
+
+Detalle completo en `satqito/README.md`.
+
+---
+
 ## Sobre los datos
 
 Las series de lluvia son sintéticas y **deterministas**: se generan con una
-semilla fija, de modo que el escenario es idéntico en cada ejecución y la
-demostración es reproducible. El episodio simulado empieza seis horas antes del
-momento mostrado (26 oct 2026, 10:35 PET), por eso el acumulado móvil sube desde
-casi cero.
+semilla fija, de modo que el escenario es idéntico en cada ejecución. El
+episodio simulado termina en la **hora actual de Perú (UTC-5)**, por eso el
+acumulado móvil sube desde casi cero.
 
 Las ubicaciones de las quebradas son reales; los niveles de riesgo asociados a
 ellas, no. Las capas de zonas seguras, rutas de evacuación y exposición aparecen
@@ -229,7 +330,7 @@ python -m mypy
 python -m unittest pruebas_ingesta pruebas_alertas -v
 ```
 
-En total son **51 pruebas con pytest**, **17 con unittest** y **8 flujos** de
+En total son **97 pruebas con pytest**, **17 con unittest** y **8 flujos** de
 interfaz. La carpeta `tests/` cubre los límites del motor, `sin_datos`, la
 ventana móvil, las transiciones de alertas, el recálculo de umbrales, la
 idempotencia de la ingesta y el contrato del repositorio.
@@ -328,4 +429,7 @@ quebrada ya tiene una alerta activa, responde `200` con `creada: false` y
 ## Documentación
 
 - `docs/observabilidad.md` — qué se registra y cómo consultarlo.
+- `docs/mensajeria.md` — canales SMS, variables de entorno y controles de costo.
+- `docs/suscripcion.md` — suscripción por zona, quebrada más cercana y despacho.
+- `satqito/README.md` — cómo crear y ejecutar el bot Satqito.
 - `n8n/README.md` — cómo importar y ejecutar el workflow de ingesta.
