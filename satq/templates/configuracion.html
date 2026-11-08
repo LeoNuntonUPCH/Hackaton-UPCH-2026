@@ -128,18 +128,24 @@
             </div>
             <div class="campo">
               <label for="q-dep">Departamento</label>
-              <input id="q-dep" type="text" name="departamento" value="Lima" list="lista-dep">
+              <input id="q-dep" type="text" name="departamento" value="Lima" list="lista-dep" required>
               <datalist id="lista-dep">
                 {% for d in departamentos %}<option value="{{ d }}">{% endfor %}
               </datalist>
             </div>
             <div class="campo">
               <label for="q-pro">Provincia</label>
-              <input id="q-pro" type="text" name="provincia" value="Lima">
+              <input id="q-pro" type="text" name="provincia" value="Lima" list="lista-pro" required>
+              <datalist id="lista-pro">
+                {% for p in provincias %}<option value="{{ p }}">{% endfor %}
+              </datalist>
             </div>
             <div class="campo">
               <label for="q-dis">Distrito</label>
-              <input id="q-dis" type="text" name="distrito" value="Lurigancho-Chosica">
+              <input id="q-dis" type="text" name="distrito" value="Lurigancho-Chosica" list="lista-dis" required>
+              <datalist id="lista-dis">
+                {% for d in distritos %}<option value="{{ d }}">{% endfor %}
+              </datalist>
             </div>
           </div>
           <button class="btn" type="submit">{{ ico('mas', 16) }} Registrar en la simulación</button>

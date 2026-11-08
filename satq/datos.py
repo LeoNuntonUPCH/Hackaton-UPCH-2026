@@ -181,6 +181,9 @@ USUARIOS = {
 
 _BASE = [
     # (codigo, nombre, distrito, provincia, departamento, lat, lon, pico mm/6h, destinatarios)
+    # Distrito = distrito oficial (no centro poblado ni anexo): Chosica y Santa
+    # María de Huachipa están en Lurigancho-Chosica; Jicamarca, en San Antonio
+    # (provincia de Huarochirí).
     ("huaycoloro", "Huaycoloro", "Lurigancho-Chosica", "Lima", "Lima",
      -11.95, -76.95, 42.0, 12),
     ("chaclacayo", "Chaclacayo", "Chaclacayo", "Lima", "Lima",
@@ -196,15 +199,15 @@ _SECUNDARIAS = [
     ("pedregal", "Pedregal", "Lurigancho-Chosica", "Lima", "Lima", -11.94, -76.72, 15.0),
     ("cashahuacra", "Cashahuacra", "Santa Eulalia", "Huarochirí", "Lima", -11.89, -76.66, 21.0),
     ("corrales", "Corrales", "Ate", "Lima", "Lima", -12.02, -76.90, 12.0),
-    ("rayos-sol", "Rayos de Sol", "Chosica", "Lima", "Lima", -11.92, -76.69, 9.0),
+    ("rayos-sol", "Rayos de Sol", "Lurigancho-Chosica", "Lima", "Lima", -11.92, -76.69, 9.0),
     ("huampani", "Huampaní", "Chaclacayo", "Lima", "Lima", -11.97, -76.80, 17.0),
-    ("mariscal", "Mariscal Castilla", "Chosica", "Lima", "Lima", -11.93, -76.71, 7.0),
-    ("san-antonio", "San Antonio", "Jicamarca", "Huarochirí", "Lima", -11.90, -76.93, 23.0),
+    ("mariscal", "Mariscal Castilla", "Lurigancho-Chosica", "Lima", "Lima", -11.93, -76.71, 7.0),
+    ("san-antonio", "San Antonio", "San Antonio", "Huarochirí", "Lima", -11.90, -76.93, 23.0),
     ("yanacoto", "Yanacoto", "Lurigancho-Chosica", "Lima", "Lima", -11.95, -76.73, 11.0),
     ("carosio", "Carosio", "Chaclacayo", "Lima", "Lima", -11.98, -76.78, 6.0),
     ("huaycan", "Huaycán", "Ate", "Lima", "Lima", -12.01, -76.81, 19.0),
-    ("santa-maria", "Santa María", "Huachipa", "Lima", "Lima", -11.99, -76.91, 13.0),
-    ("la-cantuta", "La Cantuta", "Chosica", "Lima", "Lima", -11.91, -76.68, 8.0),
+    ("santa-maria", "Santa María", "Lurigancho-Chosica", "Lima", "Lima", -11.99, -76.91, 13.0),
+    ("la-cantuta", "La Cantuta", "Lurigancho-Chosica", "Lima", "Lima", -11.91, -76.68, 8.0),
     ("virgen-rosario", "Virgen del Rosario", "El Porvenir", "Trujillo", "La Libertad",
      -8.06, -79.01, 16.0),
     ("san-idelfonso", "San Idelfonso", "Trujillo", "Trujillo", "La Libertad",

@@ -10,3 +10,5 @@ venv/
 
 iniciar_demo.bat
 .satqito_offset
+.omc/
+/graphify-out
