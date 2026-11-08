@@ -158,10 +158,10 @@
           </div>
         </div>
 
-        <div class="flex gap-8 mb-8">
+        <div class="flex gap-8 mb-8 acciones-alerta">
           <a class="btn" href="/quebrada/{{ quebrada_sel.codigo }}">Revisar</a>
           {% if seleccionada.estado == 'pendiente' %}
-          <form method="post" action="/alertas/validar" style="flex:1">
+          <form method="post" action="/alertas/validar">
             <input type="hidden" name="alerta" value="{{ seleccionada.codigo }}">
             <button class="btn btn-primario btn-bloque" type="submit">Validar simulación</button>
           </form>
@@ -174,7 +174,7 @@
           {% endif %}
         </div>
 
-        <form method="post" action="/alertas/estado" class="flex gap-8">
+        <form method="post" action="/alertas/estado" class="flex gap-8 estado-alerta">
           <input type="hidden" name="alerta" value="{{ seleccionada.codigo }}">
           <select name="nuevo_estado" aria-label="Nuevo estado">
             {% for clave, texto in estados.items() %}
