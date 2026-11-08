@@ -97,19 +97,59 @@ def login(estado: Estado, params: dict) -> tuple[str, dict]:
     }
 
 
-def dashboard(estado: Estado, params: dict) -> tuple[str, dict]:
-    departamento = params.get("departamento") or ""
-    provincia = params.get("provincia") or ""
-    distrito = params.get("distrito") or ""
-    seleccion = params.get("quebrada") or "huaycoloro"
+def _filtros_ubicacion(estado: Estado, params: dict) -> dict[str, str]:
+    """Lee los cuatro niveles territoriales y descarta los incoherentes."""
+    return estado.normalizar_ubicacion(
+        (params.get("departamento") or "").strip(),
+        (params.get("provincia") or "").strip(),
+        (params.get("distrito") or "").strip(),
+        (params.get("quebrada") or "").strip(),
+    )
 
-    quebradas = estado.filtrar_quebradas(departamento, provincia, distrito)
-    if seleccion not in {q.codigo for q in quebradas}:
-        seleccion = quebradas[0].codigo if quebradas else ""
+
+def _ambito(estado: Estado, filtros: dict[str, str]) -> list:
+    """Quebradas que cubre el filtro: la elegida o todas las del territorio."""
+    quebradas = estado.filtrar_quebradas(
+        filtros["departamento"], filtros["provincia"], filtros["distrito"]
+    )
+    if filtros["quebrada"]:
+        quebradas = [q for q in quebradas if q.codigo == filtros["quebrada"]]
+    return quebradas
+
+
+def _detalle(quebradas: list) -> str:
+    """Quebrada que se muestra en el gráfico: Huaycoloro si está, o la primera."""
+    codigos = [q.codigo for q in quebradas]
+    if "huaycoloro" in codigos:
+        return "huaycoloro"
+    return codigos[0] if codigos else ""
+
+
+def dashboard(estado: Estado, params: dict) -> tuple[str, dict]:
+    filtros = _filtros_ubicacion(estado, params)
+    quebradas = _ambito(estado, filtros)
+    codigos = {q.codigo for q in quebradas}
+    seleccion = filtros["quebrada"] or _detalle(quebradas)
 
     ctx = _base(estado, "dashboard")
-    q = estado.quebrada(seleccion)
+    q = estado.quebrada(seleccion) if seleccion else None
     ev = estado.evaluacion(seleccion) if q else None
+
+    # Tarjetas y alertas recientes se calculan sobre el ámbito filtrado.
+    alertas_ambito = [a for a in estado.alertas if a.quebrada in codigos]
+    evaluaciones = estado.evaluaciones()
+    en_riesgo = sum(
+        1
+        for c in codigos
+        if c in evaluaciones
+        and evaluaciones[c].nivel in ("moderado", "alto", "critico")
+    )
+    recientes = estado.filtrar_alertas(
+        departamento=filtros["departamento"] or None,
+        provincia=filtros["provincia"] or None,
+        distrito=filtros["distrito"] or None,
+        quebrada=filtros["quebrada"] or None,
+    )
 
     serie = q.serie_acumulada(estado.umbrales.ventana_horas) if q else []
     ctx.update(
@@ -119,17 +159,12 @@ def dashboard(estado: Estado, params: dict) -> tuple[str, dict]:
             "todas_quebradas": sorted(
                 estado.quebradas.values(), key=lambda x: x.nombre
             ),
-            "departamentos": estado.departamentos(),
-            "provincias": estado.provincias(departamento or None),
-            "distritos": estado.distritos(provincia or None),
-            "filtros": {
-                "departamento": departamento,
-                "provincia": provincia,
-                "distrito": distrito,
-                "quebrada": seleccion,
-            },
-            "total_monitoreadas": len(estado.quebradas),
-            "localidades_riesgo": estado.localidades_en_riesgo(),
+            "jerarquia": estado.jerarquia(),
+            "filtros": filtros,
+            "hay_filtro": any(filtros.values()),
+            "total_monitoreadas": len(quebradas),
+            "localidades_riesgo": en_riesgo,
+            "activas_ambito": sum(1 for a in alertas_ambito if a.activa),
             "conteo": estado.conteo_estados(),
             "mapa": graficos.mapa_peru(
                 _marcadores(estado, quebradas),
@@ -137,7 +172,7 @@ def dashboard(estado: Estado, params: dict) -> tuple[str, dict]:
                 alto=430,
                 destacado=seleccion,
             ),
-            "alertas_recientes": estado.filtrar_alertas(estado=None)[:3],
+            "alertas_recientes": recientes[:3],
             "quebrada_sel": q,
             "evaluacion": ev,
             "grafico": graficos.grafico_acumulado(
@@ -148,35 +183,33 @@ def dashboard(estado: Estado, params: dict) -> tuple[str, dict]:
             ),
             "serie_inicio": serie[-6] if len(serie) >= 6 else (serie[0] if serie else None),
             "serie_fin": serie[-1] if serie else None,
-            "evaluaciones": estado.evaluaciones(),
+            "evaluaciones": evaluaciones,
         }
     )
     return "dashboard.html", ctx
 
 
 def mapa(estado: Estado, params: dict) -> tuple[str, dict]:
-    departamento = params.get("departamento") or ""
-    provincia = params.get("provincia") or ""
-    distrito = params.get("distrito") or ""
+    filtros = _filtros_ubicacion(estado, params)
     busqueda = (params.get("buscar") or "").strip()
-    seleccion = params.get("quebrada") or "huaycoloro"
 
-    quebradas = estado.filtrar_quebradas(departamento, provincia, distrito)
+    quebradas = _ambito(estado, filtros)
     if busqueda:
         b = busqueda.lower()
+        # Sin coincidencias la lista queda vacía: la pantalla lo avisa.
         quebradas = [
             q
             for q in quebradas
             if b in q.nombre.lower()
             or b in q.distrito.lower()
+            or b in q.provincia.lower()
             or b in q.departamento.lower()
-        ] or quebradas
+        ]
 
-    if seleccion not in {q.codigo for q in quebradas}:
-        seleccion = quebradas[0].codigo if quebradas else ""
+    seleccion = filtros["quebrada"] or _detalle(quebradas)
 
     ctx = _base(estado, "mapa")
-    q = estado.quebrada(seleccion)
+    q = estado.quebrada(seleccion) if seleccion else None
     ev = estado.evaluacion(seleccion) if q else None
     ctx.update(
         {
@@ -185,16 +218,8 @@ def mapa(estado: Estado, params: dict) -> tuple[str, dict]:
             "todas_quebradas": sorted(
                 estado.quebradas.values(), key=lambda x: x.nombre
             ),
-            "departamentos": estado.departamentos(),
-            "provincias": estado.provincias(departamento or None),
-            "distritos": estado.distritos(provincia or None),
-            "filtros": {
-                "departamento": departamento,
-                "provincia": provincia,
-                "distrito": distrito,
-                "quebrada": seleccion,
-                "buscar": busqueda,
-            },
+            "jerarquia": estado.jerarquia(),
+            "filtros": {**filtros, "buscar": busqueda},
             "mapa": graficos.mapa_peru(
                 _marcadores(estado, quebradas),
                 ancho=720,
@@ -260,11 +285,18 @@ def quebradas(estado: Estado, params: dict) -> tuple[str, dict]:
 
 def alertas(estado: Estado, params: dict) -> tuple[str, dict]:
     nivel = params.get("nivel") or ""
-    departamento = params.get("departamento") or ""
+    ubicacion = _filtros_ubicacion(estado, params)
     estado_f = params.get("estado") or "activas"
     seleccion = params.get("alerta") or ""
 
-    lista = estado.filtrar_alertas(nivel or None, departamento or None, estado_f)
+    lista = estado.filtrar_alertas(
+        nivel or None,
+        ubicacion["departamento"] or None,
+        estado_f,
+        provincia=ubicacion["provincia"] or None,
+        distrito=ubicacion["distrito"] or None,
+        quebrada=ubicacion["quebrada"] or None,
+    )
     if seleccion not in {a.codigo for a in lista}:
         seleccion = lista[0].codigo if lista else ""
 
@@ -278,10 +310,10 @@ def alertas(estado: Estado, params: dict) -> tuple[str, dict]:
             "conteo": conteo,
             "total_registros": len(estado.alertas),
             "niveles": NIVELES,
-            "departamentos": estado.departamentos(),
+            "jerarquia": estado.jerarquia(),
             "filtros": {
                 "nivel": nivel,
-                "departamento": departamento,
+                **ubicacion,
                 "estado": estado_f,
                 "alerta": seleccion,
             },
@@ -402,7 +434,8 @@ def configuracion(estado: Estado, params: dict) -> tuple[str, dict]:
             "historial_parametros": estado.historial_parametros,
             "pestana": pestana,
             "mensaje": params.get("mensaje"),
-            "errores": params.get("errores") or [],
+            "errores": params.get("errores")
+            or ([params["error"]] if params.get("error") else []),
             "ventanas": [1, 3, 6, 12, 24],
             "tecnico": datos.USUARIOS["diego.salazar@ejemplo.pe"],
         }
@@ -596,12 +629,13 @@ def accion_nueva_quebrada(estado: Estado, params: dict) -> str:
     nombre = (params.get("nombre") or "").strip()
     if not nombre:
         return "/configuracion?mensaje=Indica+un+nombre+para+la+quebrada"
-    q = estado.nueva_quebrada(
-        nombre,
-        (params.get("distrito") or "Sin distrito").strip(),
-        (params.get("provincia") or "Sin provincia").strip(),
-        (params.get("departamento") or "Lima").strip(),
-    )
+    departamento = (params.get("departamento") or "").strip()
+    provincia = (params.get("provincia") or "").strip()
+    distrito = (params.get("distrito") or "").strip()
+    problema = estado.validar_ubicacion(departamento, provincia, distrito)
+    if problema:
+        return f"/configuracion?pestana=umbrales&error={quote_plus(problema)}"
+    q = estado.nueva_quebrada(nombre, distrito, provincia, departamento)
     return (
         f"/configuracion?quebrada={q.codigo}"
         f"&mensaje=Quebrada+«{q.nombre}»+registrada+sin+lecturas+asociadas"

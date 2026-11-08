@@ -220,6 +220,8 @@ input:focus, select:focus, textarea:focus {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
   gap: 12px; align-items: end; margin-bottom: 16px;
 }
+/* Variante con más campos (centro de alertas): las columnas se reparten solas. */
+.filtros.filtros-amplio { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 
 /* ---------- Botones ---------- */
 

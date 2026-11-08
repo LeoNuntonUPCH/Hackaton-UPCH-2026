@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "parciales/iconos.html" import ico %}
+{% from "parciales/filtro_ubicacion.html" import selects_ubicacion, limpiar_filtros %}
 {% block contenido %}
 
 <div class="encabezado">
@@ -13,43 +14,22 @@
 </div>
 
 <form class="filtros" method="get" action="/mapa">
-  <div class="campo">
-    <label for="m-dep">Departamento</label>
-    <select id="m-dep" name="departamento">
-      <option value="">Todos</option>
-      {% for d in departamentos %}
-      <option value="{{ d }}" {{ 'selected' if filtros.departamento == d }}>{{ d }}</option>
-      {% endfor %}
-    </select>
+  {{ selects_ubicacion('m', jerarquia, filtros) }}
+  <div class="flex gap-8">
+    <button class="btn btn-primario" type="submit">{{ ico('ajustes', 16) }} Aplicar filtros</button>
+    {{ limpiar_filtros('/mapa', filtros) }}
   </div>
-  <div class="campo">
-    <label for="m-pro">Provincia</label>
-    <select id="m-pro" name="provincia">
-      <option value="">Todas</option>
-      {% for p in provincias %}
-      <option value="{{ p }}" {{ 'selected' if filtros.provincia == p }}>{{ p }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="campo">
-    <label for="m-dis">Distrito</label>
-    <select id="m-dis" name="distrito">
-      <option value="">Todos</option>
-      {% for d in distritos %}
-      <option value="{{ d }}" {{ 'selected' if filtros.distrito == d }}>{{ d }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="campo">
-    <label for="m-que">Quebrada</label>
-    <select id="m-que" name="quebrada">
-      {% for q in quebradas %}
-      <option value="{{ q.codigo }}" {{ 'selected' if filtros.quebrada == q.codigo }}>{{ q.nombre }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <button class="btn btn-primario" type="submit">{{ ico('ajustes', 16) }} Aplicar filtros</button>
 </form>
+
+{% if not quebradas %}
+<div class="aviso aviso-ambar mb-16">{{ ico('alerta', 16) }}
+  <div class="texto" style="color:var(--ink)">
+    {% if filtros.buscar %}Sin coincidencias para «{{ filtros.buscar }}» con los filtros aplicados.
+    {% else %}Ninguna quebrada coincide con los filtros aplicados.{% endif %}
+    <a href="/mapa">Limpiar filtros</a>
+  </div>
+</div>
+{% endif %}
 
 <div class="rejilla r-principal-ancha">
   <div>
@@ -62,6 +42,9 @@
           {{ ico('buscar', 16) }}
         </div>
       </div>
+      <input type="hidden" name="departamento" value="{{ filtros.departamento }}">
+      <input type="hidden" name="provincia" value="{{ filtros.provincia }}">
+      <input type="hidden" name="distrito" value="{{ filtros.distrito }}">
       <input type="hidden" name="quebrada" value="{{ filtros.quebrada }}">
       <button class="btn" type="submit">{{ ico('centrar', 16) }} Centrar selección</button>
     </form>
@@ -105,7 +88,7 @@
           <div class="rotulo-panel">Quebrada seleccionada</div>
           <h3>{{ quebrada_sel.nombre }}</h3>
         </div>
-        <a href="/mapa" aria-label="Quitar selección" style="color:var(--muted-2)">{{ ico('cerrar', 16) }}</a>
+        <a href="/mapa?departamento={{ filtros.departamento | urlencode }}&provincia={{ filtros.provincia | urlencode }}&distrito={{ filtros.distrito | urlencode }}" aria-label="Quitar selección" style="color:var(--muted-2)">{{ ico('cerrar', 16) }}</a>
       </div>
       <div class="cuerpo" style="padding-top:8px">
         <div class="texto-sm texto-muted">{{ quebrada_sel.ubicacion_larga }}</div>

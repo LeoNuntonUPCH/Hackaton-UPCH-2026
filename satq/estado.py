@@ -156,14 +156,88 @@ class Estado:
             }
         )
 
-    def distritos(self, provincia: str | None = None) -> list[str]:
+    def distritos(
+        self, provincia: str | None = None, departamento: str | None = None
+    ) -> list[str]:
         return sorted(
             {
                 q.distrito
                 for q in self.quebradas.values()
-                if not provincia or q.provincia == provincia
+                if (not provincia or q.provincia == provincia)
+                and (not departamento or q.departamento == departamento)
             }
         )
+
+    def jerarquia(self) -> dict[str, list]:
+        """Árbol departamento → provincia → distrito → quebrada.
+
+        Alimenta los desplegables dependientes: cada opción lleva sus padres,
+        así el navegador puede ocultar las que no corresponden.
+        """
+        provincias = sorted({(q.departamento, q.provincia) for q in self.quebradas.values()})
+        distritos = sorted(
+            {(q.departamento, q.provincia, q.distrito) for q in self.quebradas.values()}
+        )
+        quebradas = sorted(self.quebradas.values(), key=lambda q: q.nombre)
+        return {
+            "departamentos": self.departamentos(),
+            "provincias": provincias,
+            "distritos": distritos,
+            "quebradas": quebradas,
+        }
+
+    def normalizar_ubicacion(
+        self,
+        departamento: str = "",
+        provincia: str = "",
+        distrito: str = "",
+        quebrada: str = "",
+    ) -> dict[str, str]:
+        """Descarta los niveles que no pertenecen a su padre.
+
+        Si llega «Piura / Lima» (una provincia que quedó de un filtro anterior),
+        la provincia se descarta en vez de devolver cero resultados sin aviso.
+        """
+        if departamento not in self.departamentos():
+            departamento = ""
+        if provincia and provincia not in self.provincias(departamento or None):
+            provincia = ""
+        if distrito and distrito not in self.distritos(
+            provincia or None, departamento or None
+        ):
+            distrito = ""
+        if quebrada and quebrada not in {
+            q.codigo
+            for q in self.filtrar_quebradas(departamento, provincia, distrito)
+        }:
+            quebrada = ""
+        return {
+            "departamento": departamento,
+            "provincia": provincia,
+            "distrito": distrito,
+            "quebrada": quebrada,
+        }
+
+    def validar_ubicacion(
+        self, departamento: str, provincia: str, distrito: str
+    ) -> str | None:
+        """Comprueba que una ubicación nueva no contradiga la jerarquía existente.
+
+        Devuelve el motivo del rechazo o None si es coherente. Solo se valida
+        provincia → departamento: los nombres de distrito sí se repiten dentro
+        de un mismo departamento (p. ej. San Antonio en Cañete y en Huarochirí),
+        así que rechazarlos daría falsos errores. La validación completa exige
+        un catálogo de ubigeo que el prototipo no incluye.
+        """
+        if not (departamento and provincia and distrito):
+            return "Indica departamento, provincia y distrito."
+        for q in self.quebradas.values():
+            if q.provincia == provincia and q.departamento != departamento:
+                return (
+                    f"La provincia {provincia} ya está registrada en el "
+                    f"departamento {q.departamento}, no en {departamento}."
+                )
+        return None
 
     def filtrar_quebradas(
         self,
@@ -187,6 +261,9 @@ class Estado:
         nivel: str | None = None,
         departamento: str | None = None,
         estado: str | None = None,
+        provincia: str | None = None,
+        distrito: str | None = None,
+        quebrada: str | None = None,
     ) -> list[Alerta]:
         salida = []
         for a in self.alertas:
@@ -194,6 +271,12 @@ class Estado:
             if nivel and a.nivel != nivel:
                 continue
             if departamento and (not q or q.departamento != departamento):
+                continue
+            if provincia and (not q or q.provincia != provincia):
+                continue
+            if distrito and (not q or q.distrito != distrito):
+                continue
+            if quebrada and a.quebrada != quebrada:
                 continue
             if estado == "activas" and not a.activa:
                 continue

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "parciales/iconos.html" import ico, nivel_etiqueta %}
+{% from "parciales/filtro_ubicacion.html" import selects_ubicacion, limpiar_filtros, consulta_ubicacion %}
 {% block contenido %}
 
 <div class="encabezado">
@@ -8,64 +9,42 @@
     <div class="bajada">Una mirada priorizada al territorio y a las alertas que requieren revisión.</div>
   </div>
   <div class="acciones">
-    <a class="btn btn-azul-claro" href="/mapa?quebrada={{ filtros.quebrada }}">
+    <a class="btn btn-azul-claro" href="/mapa?{{ consulta_ubicacion(filtros) }}">
       {{ ico('mapa-libro', 16) }} Ver mapa de riesgo
     </a>
   </div>
 </div>
 
 <form class="filtros" method="get" action="/dashboard">
-  <div class="campo">
-    <label for="f-dep">Departamento</label>
-    <select id="f-dep" name="departamento">
-      <option value="">Todos</option>
-      {% for d in departamentos %}
-      <option value="{{ d }}" {{ 'selected' if filtros.departamento == d }}>{{ d }}</option>
-      {% endfor %}
-    </select>
+  {{ selects_ubicacion('f', jerarquia, filtros) }}
+  <div class="flex gap-8">
+    <button class="btn btn-primario" type="submit">{{ ico('ajustes', 16) }} Aplicar filtros</button>
+    {{ limpiar_filtros('/dashboard', filtros) }}
   </div>
-  <div class="campo">
-    <label for="f-pro">Provincia</label>
-    <select id="f-pro" name="provincia">
-      <option value="">Todas</option>
-      {% for p in provincias %}
-      <option value="{{ p }}" {{ 'selected' if filtros.provincia == p }}>{{ p }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="campo">
-    <label for="f-dis">Distrito</label>
-    <select id="f-dis" name="distrito">
-      <option value="">Todos</option>
-      {% for d in distritos %}
-      <option value="{{ d }}" {{ 'selected' if filtros.distrito == d }}>{{ d }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="campo">
-    <label for="f-que">Quebrada</label>
-    <select id="f-que" name="quebrada">
-      {% for q in quebradas %}
-      <option value="{{ q.codigo }}" {{ 'selected' if filtros.quebrada == q.codigo }}>{{ q.nombre }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <button class="btn btn-primario" type="submit">{{ ico('ajustes', 16) }} Aplicar filtros</button>
 </form>
+
+{% if not quebradas %}
+<div class="aviso aviso-ambar mb-16">{{ ico('alerta', 16) }}
+  <div class="texto" style="color:var(--ink)">
+    Ninguna quebrada coincide con los filtros aplicados.
+    <a href="/dashboard">Limpiar filtros</a>
+  </div>
+</div>
+{% endif %}
 
 <div class="rejilla r-4 mb-16">
   <div class="indicador">
     <div class="txt">
       <div class="rotulo">Zonas monitoreadas</div>
       <div class="cifra">{{ total_monitoreadas }}</div>
-      <div class="nota">Quebradas de ejemplo</div>
+      <div class="nota">{{ 'Dentro del filtro' if hay_filtro else 'Quebradas de ejemplo' }}</div>
     </div>
     <div class="icono">{{ ico('quebrada', 17) }}</div>
   </div>
   <div class="indicador">
     <div class="txt">
       <div class="rotulo">Alertas activas</div>
-      <div class="cifra">{{ conteo.activas }}</div>
+      <div class="cifra">{{ activas_ambito }}</div>
       <div class="nota">Pendientes y gestionadas</div>
     </div>
     <div class="icono">{{ ico('campana', 17) }}</div>
@@ -121,9 +100,9 @@
     <div class="cab">
       <div class="flex entre centro-v">
         <h2>Alertas recientes</h2>
-        <a class="texto-sm" href="/alertas">Ver todas ›</a>
+        <a class="texto-sm" href="/alertas?estado=todas&{{ consulta_ubicacion(filtros) }}">Ver todas ›</a>
       </div>
-      <div class="bajada">{{ conteo.activas }} activas · Escenario simulado</div>
+      <div class="bajada">{{ activas_ambito }} activas{{ ' en el filtro' if hay_filtro }} · Escenario simulado</div>
     </div>
     <div class="cuerpo">
       {% for a in alertas_recientes %}
@@ -139,6 +118,8 @@
         <a class="btn btn-sm btn-azul-claro" href="/alertas?alerta={{ a.codigo }}">Revisar alerta</a>
         {% endif %}
       </div>
+      {% else %}
+      <p class="texto-sm texto-muted">Sin alertas para este filtro.</p>
       {% endfor %}
     </div>
   </section>

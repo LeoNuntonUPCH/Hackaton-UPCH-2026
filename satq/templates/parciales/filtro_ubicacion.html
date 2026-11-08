@@ -1,0 +1,92 @@
+{#
+  Desplegables dependientes Departamento → Provincia → Distrito → Quebrada.
+
+  Cada opción lleva a sus padres en atributos data-*. El script reconstruye
+  las listas hijas al cambiar un padre y descarta la selección que deje de
+  pertenecer. Sin JavaScript el formulario sigue funcionando: el servidor
+  normaliza la combinación (Estado.normalizar_ubicacion).
+#}
+{% macro selects_ubicacion(prefijo, jerarquia, filtros) %}
+<div class="campo">
+  <label for="{{ prefijo }}-dep">Departamento</label>
+  <select id="{{ prefijo }}-dep" name="departamento" data-nivel="dep">
+    <option value="">Todos</option>
+    {% for d in jerarquia.departamentos %}
+    <option value="{{ d }}" {{ 'selected' if filtros.departamento == d }}>{{ d }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="campo">
+  <label for="{{ prefijo }}-pro">Provincia</label>
+  <select id="{{ prefijo }}-pro" name="provincia" data-nivel="pro">
+    <option value="">Todas</option>
+    {% for dep, pro in jerarquia.provincias %}
+    <option value="{{ pro }}" data-dep="{{ dep }}"
+            {{ 'selected' if filtros.provincia == pro and (not filtros.departamento or filtros.departamento == dep) }}>{{ pro }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="campo">
+  <label for="{{ prefijo }}-dis">Distrito</label>
+  <select id="{{ prefijo }}-dis" name="distrito" data-nivel="dis">
+    <option value="">Todos</option>
+    {% for dep, pro, dis in jerarquia.distritos %}
+    <option value="{{ dis }}" data-dep="{{ dep }}" data-pro="{{ pro }}"
+            {{ 'selected' if filtros.distrito == dis and (not filtros.departamento or filtros.departamento == dep) and (not filtros.provincia or filtros.provincia == pro) }}>{{ dis }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="campo">
+  <label for="{{ prefijo }}-que">Quebrada</label>
+  <select id="{{ prefijo }}-que" name="quebrada" data-nivel="que">
+    <option value="">Todas</option>
+    {% for q in jerarquia.quebradas %}
+    <option value="{{ q.codigo }}" data-dep="{{ q.departamento }}" data-pro="{{ q.provincia }}" data-dis="{{ q.distrito }}"
+            {{ 'selected' if filtros.quebrada == q.codigo }}>{{ q.nombre }}</option>
+    {% endfor %}
+  </select>
+</div>
+<script>
+(function () {
+  var sel = function (n) { return document.getElementById("{{ prefijo }}-" + n); };
+  var dep = sel("dep"), pro = sel("pro"), dis = sel("dis"), que = sel("que");
+  // Copia completa de las opciones, para poder reconstruir cada lista.
+  var copia = function (s) { return Array.prototype.slice.call(s.options).map(function (o) { return o.cloneNode(true); }); };
+  var todas = { pro: copia(pro), dis: copia(dis), que: copia(que) };
+
+  function reconstruir(s, opciones, cumple) {
+    var actual = s.value;
+    while (s.options.length) s.remove(0);
+    opciones.forEach(function (o) {
+      if (!o.value || cumple(o.dataset)) s.add(o.cloneNode(true));
+    });
+    // Conserva la selección solo si sigue perteneciendo al padre.
+    s.value = Array.prototype.some.call(s.options, function (o) { return o.value === actual; }) ? actual : "";
+  }
+  function actualizar() {
+    var d = dep.value;
+    reconstruir(pro, todas.pro, function (x) { return !d || x.dep === d; });
+    var p = pro.value;
+    reconstruir(dis, todas.dis, function (x) { return (!d || x.dep === d) && (!p || x.pro === p); });
+    var t = dis.value;
+    reconstruir(que, todas.que, function (x) {
+      return (!d || x.dep === d) && (!p || x.pro === p) && (!t || x.dis === t);
+    });
+  }
+  [dep, pro, dis].forEach(function (s) { s.addEventListener("change", actualizar); });
+  actualizar();
+})();
+</script>
+{% endmacro %}
+
+{# Enlace para volver al estado sin filtros. #}
+{% macro limpiar_filtros(url, filtros) %}
+{% if filtros.departamento or filtros.provincia or filtros.distrito or filtros.quebrada or filtros.buscar or filtros.nivel %}
+<a class="btn" href="{{ url }}">Limpiar filtros</a>
+{% endif %}
+{% endmacro %}
+
+{# Parámetros territoriales para reutilizar en enlaces a otras pantallas. #}
+{% macro consulta_ubicacion(filtros) -%}
+departamento={{ filtros.departamento | urlencode }}&provincia={{ filtros.provincia | urlencode }}&distrito={{ filtros.distrito | urlencode }}&quebrada={{ filtros.quebrada | urlencode }}
+{%- endmacro %}

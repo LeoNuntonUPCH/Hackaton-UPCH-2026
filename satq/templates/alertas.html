@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "parciales/iconos.html" import ico, nivel_etiqueta %}
+{% from "parciales/filtro_ubicacion.html" import selects_ubicacion, limpiar_filtros, consulta_ubicacion %}
 {% block contenido %}
 
 <div class="encabezado">
@@ -23,7 +24,7 @@
   <div class="indicador-simple"><div class="cifra">{{ conteo.enviada }}</div><div class="rotulo">Enviadas</div></div>
 </div>
 
-<form class="filtros" method="get" action="/alertas">
+<form class="filtros filtros-amplio" method="get" action="/alertas">
   <div class="campo">
     <label for="a-nivel">Riesgo</label>
     <select id="a-nivel" name="nivel">
@@ -33,15 +34,7 @@
       {% endfor %}
     </select>
   </div>
-  <div class="campo">
-    <label for="a-dep">Departamento</label>
-    <select id="a-dep" name="departamento">
-      <option value="">Todos</option>
-      {% for d in departamentos %}
-      <option value="{{ d }}" {{ 'selected' if filtros.departamento == d }}>{{ d }}</option>
-      {% endfor %}
-    </select>
-  </div>
+  {{ selects_ubicacion('a', jerarquia, filtros) }}
   <div class="campo">
     <label for="a-fecha">Fecha</label>
     <input id="a-fecha" type="text" value="{{ fecha_larga(ahora) }}" readonly>
@@ -56,7 +49,10 @@
       {% endfor %}
     </select>
   </div>
-  <button class="btn" type="submit">{{ ico('filtro', 16) }} Filtrar</button>
+  <div class="flex gap-8">
+    <button class="btn btn-primario" type="submit">{{ ico('filtro', 16) }} Aplicar filtros</button>
+    {{ limpiar_filtros('/alertas', filtros) }}
+  </div>
 </form>
 
 <div class="rejilla r-principal-ancha">
@@ -80,7 +76,7 @@
             {% for a in lista %}
             {% set q = quebradas[a.quebrada] %}
             <tr class="clicable {{ 'sel' if seleccionada and a.codigo == seleccionada.codigo }}"
-                onclick="location.href='/alertas?alerta={{ a.codigo }}&estado={{ filtros.estado }}&nivel={{ filtros.nivel }}&departamento={{ filtros.departamento }}'">
+                data-href="/alertas?alerta={{ a.codigo | urlencode }}&estado={{ filtros.estado | urlencode }}&nivel={{ filtros.nivel | urlencode }}&{{ consulta_ubicacion(filtros) }}" onclick="location.href=this.dataset.href">
               <td>
                 {% if a.momento.day != ahora.day %}{{ a.momento.strftime('%d/%m') }} · {% endif %}{{ hora(a.momento) }}
               </td>
