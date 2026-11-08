@@ -330,10 +330,12 @@ python -m mypy
 python -m unittest pruebas_ingesta pruebas_alertas -v
 ```
 
-En total son **97 pruebas con pytest**, **17 con unittest** y **8 flujos** de
+En total son **103 pruebas con pytest**, **17 con unittest** y **8 flujos** de
 interfaz. La carpeta `tests/` cubre los límites del motor, `sin_datos`, la
 ventana móvil, las transiciones de alertas, el recálculo de umbrales, la
-idempotencia de la ingesta y el contrato del repositorio.
+idempotencia de la ingesta, el contrato del repositorio y la evaluación
+observacional de eventos. El método y los requisitos de datos están en
+[Validación y evidencia](docs/validacion_y_evidencia.md).
 
 ### Integración continua
 

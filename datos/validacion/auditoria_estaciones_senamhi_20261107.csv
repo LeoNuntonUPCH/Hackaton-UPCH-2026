@@ -1,0 +1,3 @@
+codigo_portal,estacion,departamento,provincia,distrito,ficha_publica,descarga_solicita_ingreso,uso_en_backtest,url_mapa,url_ficha,url_ingreso,nota
+151209,CHOSICA,LIMA,LIMA,LURIGANCHO,si,si,no,https://www.senamhi.gob.pe/site/descarga-datos/,https://www.senamhi.gob.pe/site/descarga-datos/descarga/?cod=151209,https://www.senamhi.gob.pe/site/descarga-datos/descarga/?p=login,"Previsualizacion publica; el enlace Descarga abre login con CAPTCHA."
+000618,HUARANGAL,LIMA,LIMA,ANCON,si,si,no,https://www.senamhi.gob.pe/site/descarga-datos/,https://www.senamhi.gob.pe/site/descarga-datos/descarga/?cod=000618,https://www.senamhi.gob.pe/site/descarga-datos/descarga/?p=login,"Ficha visible en el mismo mapa; no se toma como sustituta de CHOSICA para Huaycoloro."

@@ -1,0 +1,3 @@
+fuente,punto,periodo,lecturas_horarias,ventanas_6h_completas,maximo_mm_6h,umbral_mm_6h,alertas_candidatas,episodios_igp,H,M,F,POD,FAR,CSI,anticipacion_media_min,tipo_resultado,nota
+Open-Meteo ECMWF IFS,punto demo SATQ,2023-03-12/2023-03-18,168,163,7.4,20,0,4,0,4,0,0.0,,0.0,,diagnostico_exploratorio,"FAR indefinido porque no hubo alertas candidatas; no es desempeño real del SATQ ni usa observacion pluviometrica"
+Open-Meteo ECMWF IFS,referencia IGP/Jicamarca,2023-03-12/2023-03-18,168,163,5.5,20,0,4,0,4,0,0.0,,0.0,,diagnostico_exploratorio,"FAR indefinido porque no hubo alertas candidatas; no es desempeño real del SATQ ni usa observacion pluviometrica"

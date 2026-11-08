@@ -1,0 +1,101 @@
+{
+  "data": [
+    {
+      "year": 2023,
+      "month": 3,
+      "day": 12,
+      "date": "03/12/2023",
+      "epochTime": 1678579200,
+      "value": {
+        "avg": 4.200000286102295
+      },
+      "raw_value": 4.200000286102295,
+      "NaN": 0.0,
+      "isodate": "03/12/2023"
+    },
+    {
+      "year": 2023,
+      "month": 3,
+      "day": 13,
+      "date": "03/13/2023",
+      "epochTime": 1678665600,
+      "value": {
+        "avg": 6.900000095367432
+      },
+      "raw_value": 6.900000095367432,
+      "NaN": 0.0,
+      "isodate": "03/13/2023"
+    },
+    {
+      "year": 2023,
+      "month": 3,
+      "day": 14,
+      "date": "03/14/2023",
+      "epochTime": 1678752000,
+      "value": {
+        "avg": 35.0
+      },
+      "raw_value": 35.0,
+      "NaN": 0.0,
+      "isodate": "03/14/2023"
+    },
+    {
+      "year": 2023,
+      "month": 3,
+      "day": 15,
+      "date": "03/15/2023",
+      "epochTime": 1678838400,
+      "value": {
+        "avg": 25.30000114440918
+      },
+      "raw_value": 25.30000114440918,
+      "NaN": 0.0,
+      "isodate": "03/15/2023"
+    },
+    {
+      "year": 2023,
+      "month": 3,
+      "day": 16,
+      "date": "03/16/2023",
+      "epochTime": 1678924800,
+      "value": {
+        "avg": 0.5
+      },
+      "raw_value": 0.5,
+      "NaN": 0.0,
+      "isodate": "03/16/2023"
+    },
+    {
+      "year": 2023,
+      "month": 3,
+      "day": 17,
+      "date": "03/17/2023",
+      "epochTime": 1679011200,
+      "value": {
+        "avg": 0.0
+      },
+      "raw_value": 0.0,
+      "NaN": 0.0,
+      "isodate": "03/17/2023"
+    },
+    {
+      "year": 2023,
+      "month": 3,
+      "day": 18,
+      "date": "03/18/2023",
+      "epochTime": 1679097600,
+      "value": {
+        "avg": 0.6000000238418579
+      },
+      "raw_value": 0.6000000238418579,
+      "NaN": 0.0,
+      "isodate": "03/18/2023"
+    }
+  ],
+  "polygon_Str_ToPass": "{\"type\": \"FeatureCollection\", \"features\": [{\"type\": \"Feature\", \"properties\": {}, \"geometry\": {\"type\": \"Point\", \"coordinates\": [-76.8779755, -11.9523176]}}]}",
+  "uid": "a9a865b1-3974-44a3-b3f6-eb4ae67b23a9",
+  "datatype": 226,
+  "operationtype": 5,
+  "intervaltype": 0,
+  "derived_product": false
+}
