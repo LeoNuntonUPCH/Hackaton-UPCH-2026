@@ -1,0 +1,7 @@
+punto,latitud_grilla,longitud_grilla,elevacion_m,evento_local,lluvia_previas_6h_mm,clasificacion_umbral_demo
+demo,-11.915641,-76.92377,798.0,12/03 17:43,0.1,Bajo (<20 mm/6h)
+demo,-11.915641,-76.92377,798.0,14/03 15:24,4.9,Bajo (<20 mm/6h)
+demo,-11.915641,-76.92377,798.0,15/03 14:44,0.9,Bajo (<20 mm/6h)
+roj,-11.98594,-76.91202,496.0,12/03 17:43,0.0,Bajo (<20 mm/6h)
+roj,-11.98594,-76.91202,496.0,14/03 15:24,5.5,Bajo (<20 mm/6h)
+roj,-11.98594,-76.91202,496.0,15/03 14:44,0.0,Bajo (<20 mm/6h)

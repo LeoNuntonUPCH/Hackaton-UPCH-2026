@@ -1,0 +1,15 @@
+inventario,deteccion_PET,horas_de_cruce_evaluables_en_anticipacion,maximo_mm_6h_en_anticipacion,referencia_evento
+4_episodios_provisionales,2023-03-12T17:43:00-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_12_03_2023_HL2.pdf
+4_episodios_provisionales,2023-03-14T15:24:33-05:00,6,3.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_14_03_2023_HL2.pdf
+4_episodios_provisionales,2023-03-15T14:44:19-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_15_03_2023_HL2.pdf; https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_17_03_2023_HL2.pdf
+4_episodios_provisionales,2023-03-18T17:54:46-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_18_03_2023_HL2.pdf
+5_detecciones_fecha_interna,2023-03-12T17:43:00-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_12_03_2023_HL2.pdf
+5_detecciones_fecha_interna,2023-03-14T15:24:33-05:00,6,3.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_14_03_2023_HL2.pdf
+5_detecciones_fecha_interna,2023-03-15T14:44:19-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_15_03_2023_HL2.pdf
+5_detecciones_fecha_interna,2023-03-15T15:28:38-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_17_03_2023_HL2.pdf
+5_detecciones_fecha_interna,2023-03-18T17:54:46-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_18_03_2023_HL2.pdf
+5_detecciones_fecha_portada,2023-03-12T17:43:00-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_12_03_2023_HL2.pdf
+5_detecciones_fecha_portada,2023-03-14T15:24:33-05:00,6,3.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_14_03_2023_HL2.pdf
+5_detecciones_fecha_portada,2023-03-15T14:44:19-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_15_03_2023_HL2.pdf
+5_detecciones_fecha_portada,2023-03-17T15:28:38-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_17_03_2023_HL2.pdf
+5_detecciones_fecha_portada,2023-03-18T17:54:46-05:00,6,0.0,https://www.igp.gob.pe/servicios/centro-monitoreo-deslizamientos-huaicos/sites/default/files/reportes/Evento_18_03_2023_HL2.pdf
